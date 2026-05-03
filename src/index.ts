@@ -12,7 +12,7 @@ export class SchemaValidator<T extends object> implements Command<T> {
         this.schema = schema;
     }
 
-    async validation(data: T): Promise<ResultPattern<T>> {
+    async validation(data: T) {
         const notification: NotificationPattern[] = [];
         for (const rule of this.schema) {
             try {
@@ -44,7 +44,7 @@ export class SchemaValidator<T extends object> implements Command<T> {
         };
     }
 
-    async execute(input: T): Promise<ResultPattern<T>> {
+    async execute(input: T) {
         return this.validation(input);
     }
 }
