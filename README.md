@@ -1,6 +1,6 @@
 # schemaValidation
 
-Zero-dependency validation library with NotificationPattern and ResultPattern for standardized responses.
+Biblioteca de validação sem dependências com NotificationPattern e ResultPattern para respostas padronizadas.
 
 ## Instalação
 
