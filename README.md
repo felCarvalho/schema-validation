@@ -1,6 +1,6 @@
 # schemaValidation
 
-Biblioteca de validação sem dependências com NotificationPattern e ResultPattern para respostas padronizadas.
+Biblioteca de validação simples, leve e agnóstica com NotificationPattern e ResultPattern para respostas padronizadas.
 
 ## Instalação
 
