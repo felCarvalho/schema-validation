@@ -1,0 +1,42 @@
+{
+    "name": "@felca/sdk-schema-validation",
+    "version": "1.0.0",
+    "description": "Zero-dependency validation library with standardized result patterns",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "sideEffects": false,
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "validation",
+        "schema",
+        "validator",
+        "types"
+    ],
+    "author": "Felca",
+    "license": "MIT",
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/felca/sdk-schema-validation"
+    },
+    "devDependencies": {
+        "typescript": "^6.0.3"
+    },
+    "packageManager": "pnpm@10.20.0"
+}
