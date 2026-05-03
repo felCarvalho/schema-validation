@@ -1,7 +1,7 @@
 {
-    "name": "@felca/sdk-schema-validation",
+    "name": "@felca/schema-validation",
     "version": "1.0.0",
-    "description": "Zero-dependency validation library with standardized result patterns",
+    "description": "Zero-dependency validation library with NotificationPattern and ResultPattern for standardized responses",
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -33,7 +33,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/felca/sdk-schema-validation"
+        "url": "https://github.com/felca/schemaValidation"
     },
     "devDependencies": {
         "typescript": "^6.0.3"

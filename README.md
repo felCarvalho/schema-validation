@@ -1,17 +1,17 @@
-# SdkSchemaValidation
+# schemaValidation
 
-Biblioteca para validação de esquemas TypeScript com zero dependências.
+Zero-dependency validation library with NotificationPattern and ResultPattern for standardized responses.
 
 ## Instalação
 
 ```bash
-npm install SdkSchemaValidation
+npm install @felca/schema-validation
 ```
 
 ## Uso Básico
 
 ```typescript
-import { SchemaValidator } from "schemaValidation";
+import { SchemaValidator } from "@felca/schema-validation";
 
 interface User {
     name: string;
@@ -19,7 +19,7 @@ interface User {
     age: number;
 }
 
-const validator = new SchemaValidator<User, User>({
+const validator = new SchemaValidator<User>({
     schema: [
         {
             name: "name",
@@ -49,37 +49,9 @@ console.log(result.success); // true
 console.log(result.notification); // []
 ```
 
-## Interfaces
+## NotificationPattern
 
-### Rule<T>
-
-Define uma regra de validação:
-
-```typescript
-interface Rule<T> {
-    name: keyof T; // Campo que está sendo validado
-    code: number; // Código de erro único
-    error: string; // Mensagem de erro
-    description: string; // Descrição da regra
-    runValidate(data: T): boolean | Promise<boolean>; // Função de validação
-}
-```
-
-### ResultPattern<T>
-
-Retorno da validação:
-
-```typescript
-interface ResultPattern<T> {
-    success: boolean; // true se todas as regras passaram
-    notification: NotificationPattern[]; // Lista de erros
-    data: T; // Dados processados
-}
-```
-
-### NotificationPattern
-
-Notificação de erro:
+Estrutura padronizada de notificação de erro:
 
 ```typescript
 interface NotificationPattern {
@@ -91,34 +63,37 @@ interface NotificationPattern {
 }
 ```
 
-### Command<inputT, outputT>
+## ResultPattern<T>
 
-Interface que o validador implementa:
+Estrutura padronizada do resultado da validação:
 
 ```typescript
-interface Command<inputT extends object, outputT> {
-    execute(data: inputT): Promise<ResultPattern<outputT>>;
+interface ResultPattern<T> {
+    success: boolean;
+    notification: NotificationPattern[];
+    data: T;
+}
+```
+
+## Rule<T>
+
+Define uma regra de validação:
+
+```typescript
+interface Rule<T> {
+    name: keyof T;
+    code: number;
+    error: string;
+    description: string;
+    runValidate(data: T): boolean | Promise<boolean>;
 }
 ```
 
 ## Funcionalidades
 
 - **Zero dependências** - Não requer bibliotecas externas
-- **Suporte a async** - Funciona com funções síncronas e assíncronas
-- **Tipagem completa** - Total suporte a TypeScript
-- **Validação em lote** - Executa todas as regras e retorna todos os erros
-
-## API
-
-### SchemaValidator<input, output>
-
-**Construtor:**
-
-```typescript
-new SchemaValidator<input, output>({ schema: Rule < input > [] });
-```
-
-**Métodos:**
-
-- `execute(data: input): Promise<ResultPattern<output>>` - Executa a validação
-- `validation(data: input): Promise<ResultPattern<output>>` - Alias para execute
+- **NotificationPattern** - Notificações padronizadas
+- **ResultPattern** - Resposta padronizada
+- **Suporte a sync e async** - Funciona com funções síncronas e assíncronas
+- **Validação contínua** - Executa todas as regras e retorna todos os erros
+- **Totalmente tipado** - TypeScript nativo
