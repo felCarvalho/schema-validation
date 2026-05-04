@@ -5,6 +5,8 @@ import type {
     Rule,
 } from "./types.js";
 
+export type { NotificationPattern, ResultPattern, Command, Rule };
+
 export class SchemaValidator<
     T extends object,
     N extends object = NotificationPattern,
