@@ -294,6 +294,216 @@ const validator = new SchemaValidator<User>({
 });
 ```
 
+### Custom Notification Pattern
+
+```typescript
+interface CustomNotification {
+    field: string;
+    message: string;
+    code: number;
+    type: "error" | "warning";
+}
+
+interface CustomResult<T> {
+    isValid: boolean;
+    errors: CustomNotification[];
+    data: T;
+}
+
+const validator = new SchemaValidator<User, CustomNotification, CustomResult<User>>({
+    schema: [
+        {
+            name: "email",
+            code: 7001,
+            error: "Email inválido",
+            description: "Valida formato do email",
+            runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
+        },
+    ],
+    notificationMappers: (rule) => ({
+        field: String(rule.name),
+        message: rule.error,
+        code: rule.code,
+        type: "error" as const,
+    }),
+    resultMappers: (data, notif) => ({
+        isValid: notif.length === 0,
+        errors: notif,
+        data,
+    }),
+});
+
+const result = await validator.execute({
+    name: "João",
+    email: "invalid-email",
+    password: "12345678",
+    confirmPassword: "12345678",
+});
+
+console.log(result.isValid); // false
+console.log(result.errors[0].field); // "email"
+console.log(result.errors[0].type); // "error"
+```
+
+### Custom Result Pattern
+
+```typescript
+interface ApiResponse<T> {
+    status: number;
+    message: string;
+    payload?: T;
+    errors: { field: string; reason: string }[];
+}
+
+const apiValidator = new SchemaValidator<User, CustomNotification, ApiResponse<User>>({
+    schema: [
+        {
+            name: "email",
+            code: 7001,
+            error: "Email inválido",
+            description: "Valida formato do email",
+            runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
+        },
+        {
+            name: "password",
+            code: 7002,
+            error: "Senha muito curta",
+            description: "Senha deve ter pelo menos 8 caracteres",
+            runValidate: (data) => data.password.length >= 8,
+        },
+    ],
+    notificationMappers: (rule) => ({
+        field: String(rule.name),
+        message: rule.error,
+        code: rule.code,
+        type: "error" as const,
+    }),
+    resultMappers: (data, notif) => ({
+        status: notif.length === 0 ? 200 : 400,
+        message: notif.length === 0 ? "Success" : "Validation failed",
+        payload: notif.length === 0 ? data : undefined,
+        errors: notif.map((n) => ({ field: n.field, reason: n.message })),
+    }),
+});
+
+const result = await apiValidator.execute({
+    name: "João",
+    email: "joao@example.com",
+    password: "123",
+    confirmPassword: "123",
+});
+
+console.log(result.status); // 400
+console.log(result.errors); // [{ field: "password", reason: "Senha muito curta" }]
+```
+
+### Validação com mensagens customizadas por campo
+
+```typescript
+interface FormInput {
+    field: string;
+    value: string;
+}
+
+const fieldMessages: Record<string, string> = {
+    username: "Nome de usuário inválido",
+    email: "Endereço de email inválido",
+    password: "Senha não atende aos requisitos",
+};
+
+const validator = new SchemaValidator<FormInput>({
+    schema: [
+        {
+            name: "username",
+            code: 8001,
+            error: fieldMessages["username"],
+            description: "Valida username",
+            runValidate: (data) => /^[a-zA-Z0-9_]{3,20}$/.test(data.value),
+        },
+    ],
+});
+
+const result = await validator.execute({
+    field: "username",
+    value: "ab",
+});
+```
+
+### Validação de intervalo numérico
+
+```typescript
+interface AgeConfig {
+    minAge: number;
+    maxAge: number;
+    userAge: number;
+}
+
+const ageValidator = new SchemaValidator<AgeConfig>({
+    schema: [
+        {
+            name: "range",
+            code: 9001,
+            error: `Idade deve estar entre {min} e {max}`,
+            description: "Valida idade dentro do intervalo",
+            runValidate: (data) =>
+                data.userAge >= data.minAge && data.userAge <= data.maxAge,
+        },
+    ],
+});
+```
+
+### Combinação de validações
+
+```typescript
+interface RegistrationForm {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    birthDate: string;
+}
+
+const registrationValidator = new SchemaValidator<RegistrationForm>({
+    schema: [
+        {
+            name: "name",
+            code: 10001,
+            error: "Nome completo é obrigatório",
+            runValidate: (data) => data.name.split(" ").length >= 2,
+        },
+        {
+            name: "email",
+            code: 10002,
+            error: "Email inválido",
+            runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
+        },
+        {
+            name: "phone",
+            code: 10003,
+            error: "Telefone inválido",
+            runValidate: (data) => /^\(\d{2}\)\s\d{4,5}-\d{4}$/.test(data.phone),
+        },
+        {
+            name: "password",
+            code: 10004,
+            error: "Senha deve ter letras e números",
+            runValidate: (data) =>
+                /[a-zA-Z]/.test(data.password) && /[0-9]/.test(data.password),
+        },
+        {
+            name: "birthDate",
+            code: 10005,
+            error: "Data de nascimento inválida",
+            runValidate: (data) => {
+                const date = new Date(data.birthDate);
+                const now = new Date();
+                return date < now && date.getFullYear() > 1900;
+            },
+        },
+    ],
+});
+```
+
 ## NotificationPattern
 
 Estrutura padronizada de notificação de erro:
@@ -339,6 +549,7 @@ interface Rule<T> {
 - **Zero dependências** - Não requer bibliotecas externas
 - **NotificationPattern** - Notificações padronizadas
 - **ResultPattern** - Resposta padronizada
+- **Custom Mappers** - Personalize os padrões de notificação e resultado
 - **Suporte a sync e async** - Funciona com funções síncronas e assíncronas
 - **Validação contínua** - Executa todas as regras e retorna todos os erros
 - **Totalmente tipado** - TypeScript nativo
