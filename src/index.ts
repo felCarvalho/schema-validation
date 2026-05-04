@@ -5,43 +5,43 @@ import type {
     Rule,
 } from "./types.js";
 
-export class SchemaValidator<T extends object> implements Command<T> {
+export class SchemaValidator<
+    T extends object,
+    N extends object = NotificationPattern,
+    R extends object = ResultPattern<T>,
+> implements Command<T, R> {
     schema: Rule<T>[] = [];
+    notificationMappers: (rule: Rule<T>) => N;
+    resultMappers: (data: T, notif: N[]) => R;
 
-    constructor({ schema }: { schema: Rule<T>[] }) {
+    constructor({
+        schema,
+        notificationMappers,
+        resultMappers,
+    }: {
+        schema: Rule<T>[];
+        notificationMappers: (rule: Rule<T>) => N;
+        resultMappers: (data: T, notif: N[]) => R;
+    }) {
         this.schema = schema;
+        this.notificationMappers = notificationMappers;
+        this.resultMappers = resultMappers;
     }
 
     async validation(data: T) {
-        const notification: NotificationPattern[] = [];
+        const notification: N[] = [];
         for (const rule of this.schema) {
             try {
                 const isValid = await rule.runValidate(data);
                 if (!isValid) {
-                    notification.push({
-                        name: rule.name,
-                        success: false,
-                        error: rule.error,
-                        code: rule.code,
-                        description: rule.description,
-                    });
+                    notification.push(this.notificationMappers(rule));
                 }
             } catch (error) {
-                notification.push({
-                    name: rule.name,
-                    success: false,
-                    error: rule.error,
-                    code: rule.code,
-                    description: rule.description,
-                });
+                notification.push(this.notificationMappers(rule));
             }
         }
 
-        return {
-            success: notification.length === 0,
-            notification,
-            data: data,
-        };
+        return this.resultMappers(data, notification);
     }
 
     async execute(input: T) {

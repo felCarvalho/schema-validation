@@ -20,6 +20,6 @@ export interface Rule<T> {
     description: string;
 }
 
-export interface Command<T extends object> {
-    execute(data: T): Promise<ResultPattern<T>>;
+export interface Command<T extends object, R extends object> {
+    execute(data: T): Promise<R>;
 }
