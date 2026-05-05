@@ -510,10 +510,11 @@ Estrutura padronizada de notificação de erro:
 
 ```typescript
 interface NotificationPattern {
-    statusText: CodigoStatus;
+    statusText: keyof typeof CodigoStatus | number;
     success: boolean;
     name: string | number | symbol;
     error: string;
+    description: string;
 }
 ```
 
@@ -536,9 +537,9 @@ Define uma regra de validação:
 ```typescript
 interface Rule<T> {
     name: keyof T;
-    statusText: CodigoStatus;
+    statusText: keyof typeof CodigoStatus | number;
     error: string;
-    description?: string;
+    description: string;
     runValidate(data: T): boolean | Promise<boolean>;
 }
 ```
