@@ -1,5 +1,7 @@
+import { CodigoStatus } from "./enum.js";
+
 export interface NotificationPattern {
-    code: number;
+    statusText: CodigoStatus;
     success: boolean;
     name: string | number | symbol;
     error: string;
@@ -14,7 +16,7 @@ export interface ResultPattern<T> {
 
 export interface Rule<T> {
     name: keyof T;
-    code: number;
+    statusText: CodigoStatus;
     error: string;
     runValidate(data: T): boolean | Promise<boolean>;
     description: string;
