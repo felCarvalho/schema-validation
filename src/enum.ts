@@ -61,4 +61,4 @@ export const CodigoStatus = {
     LOOP_DETECTADO: 508,
     NAO_EXTENDIDO: 510,
     AUTENTICACAO_REDE_NECESSARIA: 511,
-} as const;
+};
