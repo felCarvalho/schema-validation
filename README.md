@@ -555,43 +555,92 @@ interface Rule<T> {
 
 ## CodigoStatus
 
-Código de status HTTP em português brasileiro para padronizar respostas de API:
+Código de status HTTP em português brasileiro para padronizar respostas de API.
+
+### Uso
 
 ```typescript
-import { CodigoStatus, DescricaoStatus } from "@felca/schema-validation";
+import { CodigoStatus } from "@felca/schema-validation";
 
-// Sugestão IntelliSense ao digitar
-const status = CodigoStatus.SUCESSO;
-const descricao = DescricaoStatus[CodigoStatus.SUCESSO];
+// Acesso ao código numérico
+const statusCode = CodigoStatus.OK; // 200
 
-// Exemplo em resposta de API
+// Uso em resposta de API
 const response = {
-    status: CodigoStatus.SUCESSO,
-    message: DescricaoStatus[CodigoStatus.SUCESSO],
+    status: CodigoStatus.OK,
+    message: CodigoStatus.OK,
     data: { /* ... */ },
 };
+
+// Converter código para nome
+const statusName = Object.keys(CodigoStatus).find(
+    key => CodigoStatus[key as keyof typeof CodigoStatus] === 200
+); // "OK"
 ```
 
 ### Códigos disponíveis
 
-| Códigos de sucesso (2xx) | Descrição |
-|-------------------------|-----------|
-| SUCESSO | Requisição processada com sucesso |
-| CRIADO | Novo recurso criado |
-| ACEITO | Requisição aceito para processamento |
-| SEM_CONTEUDO | Requisição processada sem retorno |
-| CONTEUDO_PARCIAL | Retorno parcial do recurso |
-
-| Códigos de erro (4xx) | Descrição |
-|----------------------|----------|
-| REQUISICAO_INVALIDA | Sintaxe inválida |
-| NAO_AUTENTICADO | Autenticação necessária |
-| ACESSO_NEGADO | Permissão negada |
-| RECURSO_NAO_ENCONTRADO | Recurso não encontrado |
-| METODO_NAO_PERMITIDO | Método HTTP não permitido |
-
-| Códigos de erro servidor (5xx) | Descrição |
-|------------------------------|----------|
-| ERRO_INTERNO_SERVIDOR | Erro inesperado no servidor |
-| NAO_IMPLEMENTADO | Funcionalidade não implementada |
-| SERVICO_INDISPONIVEL | Serviço temporariamente indisponível |
+| Código | Nome | Descrição |
+|--------|------|------------|
+| 100 | CONTINUAR | O servidor recebeu os cabeçalhos da requisição |
+| 101 | TROCAR_PROTOCOLO | O servidor está trocando de protocolo |
+| 102 | PROCESSANDO | O servidor está processando a requisição |
+| 103 | DICAS_ANTECIPADAS | O servidor enviou dicas antecipadamente |
+| **200** | **OK** | **Requisição processada com sucesso** |
+| 201 | CRIADO | Novo recurso criado com sucesso |
+| 202 | ACEITO | Requisição aceita para processamento |
+| 203 | NAO_AUTORITATIVO | Informações de fonte alternativa |
+| 204 | SEM_CONTEUDO | Requisição processada sem conteúdo |
+| 205 | REDEFINIR_CONTEUDO | Redefinir visualização do formulário |
+| 206 | CONTEUDO_PARCIAL | Retorno parcial do recurso |
+| 207 | MULTI_STATUS | Múltiplos códigos de status |
+| 208 | JA_REPORTADO | Já retornado anteriormente |
+| 226 | IM_USADO | Requisição já processada |
+| **300** | **MULTIPLAS_OPCOES** | **Múltiplas representações disponíveis** |
+| 301 | MOVIDO_PERMANENTEMENTE | Recurso movido permanentemente |
+| 302 | ENCONTRADO | Recurso movido temporariamente |
+| 303 | VER_OUTRO | Recurso disponível em outra URL |
+| 304 | NAO_MODIFICADO | Recurso não modificado |
+| 305 | USAR_PROXY | Acesso via proxy |
+| 307 | REDIRECIONAMENTO_TEMPORARIO | Redirecionamento temporário |
+| 308 | REDIRECIONAMENTO_PERMANENTE | Redirecionamento permanente |
+| **400** | **REQUISICAO_INVALIDA** | **Sintaxe da requisição inválida** |
+| 401 | NAO_AUTENTICADO | Autenticação necessária |
+| 402 | PAGAMENTO_NECESSARIO | Pagamento requerido |
+| 403 | PROIBIDO | Permissão negada |
+| 404 | NAO_ENCONTRADO | Recurso não encontrado |
+| 405 | METODO_NAO_PERMITIDO | Método HTTP não permitido |
+| 406 | NAO_ACEITAVEL | Parâmetros não aceitáveis |
+| 407 | AUTENTICACAO_PROXY_NECESSARIA | Autenticação com proxy necessária |
+| 408 | TEMPO_ESGOTADO | Tempo de espera esgotado |
+| 409 | CONFLITO | Conflito com estado do recurso |
+| 410 | RECURSO_REMOVIDO | Recurso removido |
+| 411 | TAMANHO_NECESSARIO | Content-Length obrigatório |
+| 412 | PRE_CONDICAO_FALHOU | Condições não atendidas |
+| 413 | CORPO_MUITOS_GRANDE | Corpo da requisição muito grande |
+| 414 | URI_MUITOS_LONGA | URI muito longa |
+| 415 | TIPO_MIDIA_NAO_SUPORTADO | Tipo de mídia não suportado |
+| 416 | RANGE_INVALIDO | Intervalo de bytes inválido |
+| 417 | EXPECTATIVA_FALHOU | Expectativa não atendida |
+| 418 | CHALEIRA | Servidor recusa preparar café (418 I'm a teapot) |
+| 421 | REQUISICAO_MAL_DIRECIONADA | Requisição mal direcionada |
+| 422 | ENTIDADE_INPROCESSAVEL | Entidade não processável |
+| 423 | RECURSO_BLOQUEADO | Recurso bloqueado |
+| 424 | DEPENDENCIA_FALHOU | Dependência falhou |
+| 425 | CONEXAO_REJEITADA | Conexão rejeitada |
+| 426 | ATUALIZACAO_NECESSARIA | Atualização necessária |
+| 428 | PRE_CONDICAO_NECESSARIA | Pré-condição obrigatória |
+| 429 | MUITAS_REQUISICOES |Muitas requisições em pouco tempo |
+| 431 | CABECALHOS_MUITOS_GRANDES | Cabeçalhos muito grandes |
+| 451 | INDISPONIVEL_POR_MOTIVOS_LEGAIS | Removido por motivos legais |
+| **500** | **ERRO_INTERNO_SERVIDOR** | **Erro inesperado no servidor** |
+| 501 | NAO_IMPLEMENTADO | Funcionalidade não implementada |
+| 502 | GATEWAY_INVALIDO | Gateway recebeu resposta inválida |
+| 503 | SERVICO_INDISPONIVEL | Serviço temporariamente indisponível |
+| 504 | TEMPO_GATEWAY_ESGOTADO | Gateway sem resposta a tempo |
+| 505 | VERSAO_HTTP_NAO_SUPORTADA | Versão HTTP não suportada |
+| 506 | VARIANTE_TAMBEM_NEGOCIA | Erro de negociação de conteúdo |
+| 507 | ARMAZENAMENTO_INSUFICIENTE | Espaço insuficiente |
+| 508 | LOOP_DETECTADO | Loop infinito detectado |
+| 510 | NAO_EXTENDIDO | Mais extensões necessárias |
+| 511 | AUTENTICACAO_REDE_NECESSARIA | Autenticação de rede necessária |
