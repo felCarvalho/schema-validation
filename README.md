@@ -553,3 +553,46 @@ interface Rule<T> {
 - **Suporte a sync e async** - Funciona com funções síncronas e assíncronas
 - **Validação contínua** - Executa todas as regras e retorna todos os erros
 - **Totalmente tipado** - TypeScript nativo
+
+## CodigoStatus
+
+Código de status HTTP em português brasileiro para padronizar respostas de API:
+
+```typescript
+import { CodigoStatus, DescricaoStatus } from "@felca/schema-validation";
+
+// Sugestão IntelliSense ao digitar
+const status = CodigoStatus.SUCESSO;
+const descricao = DescricaoStatus[CodigoStatus.SUCESSO];
+
+// Exemplo em resposta de API
+const response = {
+    status: CodigoStatus.SUCESSO,
+    message: DescricaoStatus[CodigoStatus.SUCESSO],
+    data: { /* ... */ },
+};
+```
+
+### Códigos disponíveis
+
+| Códigos de sucesso (2xx) | Descrição |
+|-------------------------|-----------|
+| SUCESSO | Requisição processada com sucesso |
+| CRIADO | Novo recurso criado |
+| ACEITO | Requisição aceito para processamento |
+| SEM_CONTEUDO | Requisição processada sem retorno |
+| CONTEUDO_PARCIAL | Retorno parcial do recurso |
+
+| Códigos de erro (4xx) | Descrição |
+|----------------------|----------|
+| REQUISICAO_INVALIDA | Sintaxe inválida |
+| NAO_AUTENTICADO | Autenticação necessária |
+| ACESSO_NEGADO | Permissão negada |
+| RECURSO_NAO_ENCONTRADO | Recurso não encontrado |
+| METODO_NAO_PERMITIDO | Método HTTP não permitido |
+
+| Códigos de erro servidor (5xx) | Descrição |
+|------------------------------|----------|
+| ERRO_INTERNO_SERVIDOR | Erro inesperado no servidor |
+| NAO_IMPLEMENTADO | Funcionalidade não implementada |
+| SERVICO_INDISPONIVEL | Serviço temporariamente indisponível |
