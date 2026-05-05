@@ -1,6 +1,6 @@
 {
     "name": "@felipe-lib/schema-local",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "description": "Biblioteca de validação simples, leve e agnóstica com NotificationPattern e ResultPattern para respostas padronizadas",
     "type": "module",
     "main": "./dist/index.js",
