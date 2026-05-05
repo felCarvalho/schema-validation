@@ -1,11 +1,8 @@
-import { CodigoStatus } from "./enum.js";
-
 export interface NotificationPattern {
-    statusText: keyof typeof CodigoStatus | number;
     success: boolean;
     name: string | number | symbol;
     error: string;
-    description: string;
+    description?: string;
 }
 
 export interface ResultPattern<T> {
@@ -16,10 +13,9 @@ export interface ResultPattern<T> {
 
 export interface Rule<T> {
     name: keyof T;
-    statusText: keyof typeof CodigoStatus | number;
     error: string;
     runValidate(data: T): boolean | Promise<boolean>;
-    description: string;
+    description?: string;
 }
 
 export interface Command<T extends object, R extends object> {
