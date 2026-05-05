@@ -6,9 +6,7 @@ import type {
 } from "./types.js";
 
 export type { NotificationPattern, ResultPattern, Command, Rule };
-
-export { CodigoStatus, DescricaoStatus } from "./enum.js";
-export type { CodigoStatus } from "./enum.js";
+export { type CodigoStatus, DescricaoStatus } from "./enum.js";
 
 export class SchemaValidator<
     T extends object,
