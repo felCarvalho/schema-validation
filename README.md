@@ -22,13 +22,13 @@ interface User {
 const validator = new SchemaValidator<User>({
     schema: [
         {
-            name: "name",
+            key: "name",
             error: "Nome é obrigatório",
             description: "Verifica se o nome foi fornecido",
             runValidate: (data: User) => data.name.trim().length > 0,
         },
         {
-            name: "email",
+            key: "email",
             error: "Email inválido",
             description: "Valida formato do email",
             runValidate: (data: User) =>
@@ -37,7 +37,7 @@ const validator = new SchemaValidator<User>({
     ],
     notificationMappers: (rule) => ({
         success: false,
-        name: rule.name,
+        key: rule.key,
         error: rule.error,
         description: rule.description,
     }),
@@ -77,19 +77,19 @@ interface User {
 const addressValidator = new SchemaValidator<Address>({
     schema: [
         {
-            name: "street",
+            key: "street",
             error: "Rua é obrigatória",
             runValidate: (data) => data.street.length > 0,
         },
         {
-            name: "zipCode",
+            key: "zipCode",
             error: "CEP inválido",
             runValidate: (data) => /^\d{5}-\d{3}$/.test(data.zipCode),
         },
     ],
     notificationMappers: (rule) => ({
         success: false,
-        name: rule.name,
+        key: rule.key,
         error: rule.error,
     }),
     resultMappers: (data, notif) => ({
@@ -102,12 +102,12 @@ const addressValidator = new SchemaValidator<Address>({
 const userValidator = new SchemaValidator<User>({
     schema: [
         {
-            name: "name",
+            key: "name",
             error: "Nome é obrigatório",
             runValidate: (data) => data.name.trim().length > 0,
         },
         {
-            name: "address",
+            key: "address",
             error: "Endereço inválido",
             runValidate: async (data) => {
                 const result = await addressValidator.execute(data.address);
@@ -117,7 +117,7 @@ const userValidator = new SchemaValidator<User>({
     ],
     notificationMappers: (rule) => ({
         success: false,
-        name: rule.name,
+        key: rule.key,
         error: rule.error,
     }),
     resultMappers: (data, notif) => ({
@@ -139,17 +139,17 @@ interface LoginData {
 const loginValidator = new SchemaValidator<LoginData>({
     schema: [
         {
-            name: "email",
+            key: "email",
             error: "Email é obrigatório",
             runValidate: (data) => !!data.email,
         },
         {
-            name: "password",
+            key: "password",
             error: "Senha deve ter pelo menos 8 caracteres",
             runValidate: (data) => data.password.length >= 8,
         },
         {
-            name: "email",
+            key: "email",
             error: "Usuário não existe",
             runValidate: async (data) => {
                 const response = await fetch("/api/verify-user", {
@@ -162,7 +162,7 @@ const loginValidator = new SchemaValidator<LoginData>({
     ],
     notificationMappers: (rule) => ({
         success: false,
-        name: rule.name,
+        key: rule.key,
         error: rule.error,
     }),
     resultMappers: (data, notif) => ({
@@ -186,13 +186,13 @@ interface FormData {
 const formValidator = new SchemaValidator<FormData>({
     schema: [
         {
-            name: "type",
+            key: "type",
             error: "Tipo inválido",
             runValidate: (data) =>
                 ["individual", "company"].includes(data.type),
         },
         {
-            name: "cpf",
+            key: "cpf",
             error: "CPF inválido",
             runValidate: (data) => {
                 if (data.type === "individual") {
@@ -202,7 +202,7 @@ const formValidator = new SchemaValidator<FormData>({
             },
         },
         {
-            name: "cnpj",
+            key: "cnpj",
             error: "CNPJ inválido",
             runValidate: (data) => {
                 if (data.type === "company") {
@@ -212,7 +212,7 @@ const formValidator = new SchemaValidator<FormData>({
             },
         },
         {
-            name: "companyName",
+            key: "companyName",
             error: "Razão social obrigatória",
             runValidate: (data) => {
                 if (data.type === "company") {
@@ -224,7 +224,7 @@ const formValidator = new SchemaValidator<FormData>({
     ],
     notificationMappers: (rule) => ({
         success: false,
-        name: rule.name,
+        key: rule.key,
         error: rule.error,
     }),
     resultMappers: (data, notif) => ({
@@ -250,18 +250,18 @@ interface Order {
 const orderValidator = new SchemaValidator<Order>({
     schema: [
         {
-            name: "items",
+            key: "items",
             error: "Pedido vazio",
             runValidate: (data) => data.items.length > 0,
         },
         {
-            name: "items",
+            key: "items",
             error: "Produto sem nome",
             runValidate: (data) =>
                 data.items.every((item) => item.name.trim().length > 0),
         },
         {
-            name: "items",
+            key: "items",
             error: "Preço inválido",
             runValidate: (data) =>
                 data.items.every((item) => item.price > 0),
@@ -269,7 +269,7 @@ const orderValidator = new SchemaValidator<Order>({
     ],
     notificationMappers: (rule) => ({
         success: false,
-        name: rule.name,
+        key: rule.key,
         error: rule.error,
     }),
     resultMappers: (data, notif) => ({
@@ -291,7 +291,7 @@ interface User {
 }
 
 const isRequired = (field: keyof User, error: string) => ({
-    name: field,
+    key: field,
     error,
     description: `Verifica se ${String(field)} foi fornecido`,
     runValidate: (data: User) => {
@@ -301,7 +301,7 @@ const isRequired = (field: keyof User, error: string) => ({
 });
 
 const isEmail = (error: string) => ({
-    name: "email" as const,
+    key: "email" as const,
     error,
     description: "Valida formato do email",
     runValidate: (data: User) =>
@@ -309,7 +309,7 @@ const isEmail = (error: string) => ({
 });
 
 const minLength = (field: keyof User, min: number, error: string) => ({
-    name: field,
+    key: field,
     error,
     description: `Verifica mínimo de ${min} caracteres`,
     runValidate: (data: User) => {
@@ -319,7 +319,7 @@ const minLength = (field: keyof User, min: number, error: string) => ({
 });
 
 const passwordsMatch = {
-    name: "confirmPassword" as const,
+    key: "confirmPassword" as const,
     error: "Senhas não conferem",
     description: "Confirmação de senha deve ser igual à senha",
     runValidate: (data: User) => data.password === data.confirmPassword,
@@ -334,7 +334,7 @@ const validator = new SchemaValidator<User>({
     ],
     notificationMappers: (rule) => ({
         success: false,
-        name: rule.name,
+        key: rule.key,
         error: rule.error,
     }),
     resultMappers: (data, notif) => ({
@@ -359,28 +359,28 @@ interface RegistrationForm {
 const registrationValidator = new SchemaValidator<RegistrationForm>({
     schema: [
         {
-            name: "name",
+            key: "name",
             error: "Nome completo é obrigatório",
             runValidate: (data) => data.name.split(" ").length >= 2,
         },
         {
-            name: "email",
+            key: "email",
             error: "Email inválido",
             runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
         },
         {
-            name: "phone",
+            key: "phone",
             error: "Telefone inválido",
             runValidate: (data) => /^\(\d{2}\)\s\d{4,5}-\d{4}$/.test(data.phone),
         },
         {
-            name: "password",
+            key: "password",
             error: "Senha deve ter letras e números",
             runValidate: (data) =>
                 /[a-zA-Z]/.test(data.password) && /[0-9]/.test(data.password),
         },
         {
-            name: "birthDate",
+            key: "birthDate",
             error: "Data de nascimento inválida",
             runValidate: (data) => {
                 const date = new Date(data.birthDate);
@@ -391,7 +391,7 @@ const registrationValidator = new SchemaValidator<RegistrationForm>({
     ],
     notificationMappers: (rule) => ({
         success: false,
-        name: rule.name,
+        key: rule.key,
         error: rule.error,
     }),
     resultMappers: (data, notif) => ({
@@ -420,14 +420,14 @@ interface CustomResult<T> {
 const validator = new SchemaValidator<User, CustomNotification, CustomResult<User>>({
     schema: [
         {
-            name: "email",
+            key: "email",
             error: "Email inválido",
             description: "Valida formato do email",
             runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
         },
     ],
     notificationMappers: (rule) => ({
-        field: String(rule.name),
+        field: String(rule.key),
         message: rule.error,
         type: "error" as const,
     }),
@@ -463,20 +463,20 @@ interface ApiResponse<T> {
 const apiValidator = new SchemaValidator<User, CustomNotification, ApiResponse<User>>({
     schema: [
         {
-            name: "email",
+            key: "email",
             error: "Email inválido",
             description: "Valida formato do email",
             runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
         },
         {
-            name: "password",
+            key: "password",
             error: "Senha muito curta",
             description: "Senha deve ter pelo menos 8 caracteres",
             runValidate: (data) => data.password.length >= 8,
         },
     ],
     notificationMappers: (rule) => ({
-        field: String(rule.name),
+        field: String(rule.key),
         message: rule.error,
         type: "error" as const,
     }),
@@ -516,7 +516,7 @@ const fieldMessages: Record<string, string> = {
 const validator = new SchemaValidator<FormInput>({
     schema: [
         {
-            name: "field",
+            key: "field",
             error: fieldMessages["username"],
             description: "Valida username",
             runValidate: (data) => /^[a-zA-Z0-9_]{3,20}$/.test(data.value),
@@ -524,7 +524,7 @@ const validator = new SchemaValidator<FormInput>({
     ],
     notificationMappers: (rule) => ({
         success: false,
-        name: rule.name,
+        key: rule.key,
         error: rule.error,
     }),
     resultMappers: (data, notif) => ({
@@ -552,7 +552,7 @@ interface AgeConfig {
 const ageValidator = new SchemaValidator<AgeConfig>({
     schema: [
         {
-            name: "userAge",
+            key: "userAge",
             error: `Idade deve estar entre minAge e maxAge`,
             description: "Valida idade dentro do intervalo",
             runValidate: (data) =>
@@ -561,7 +561,7 @@ const ageValidator = new SchemaValidator<AgeConfig>({
     ],
     notificationMappers: (rule) => ({
         success: false,
-        name: rule.name,
+        key: rule.key,
         error: rule.error,
     }),
     resultMappers: (data, notif) => ({
@@ -579,7 +579,7 @@ Estrutura padronizada de notificação de erro:
 ```typescript
 interface NotificationPattern {
     success: boolean;
-    name: string | number | symbol;
+    key: string | number | symbol;
     error: string;
     description?: string;
 }
@@ -603,7 +603,7 @@ Define uma regra de validação:
 
 ```typescript
 interface Rule<T> {
-    name: keyof T;
+    key: keyof T;
     error: string;
     runValidate(data: T): boolean | Promise<boolean>;
     description?: string;

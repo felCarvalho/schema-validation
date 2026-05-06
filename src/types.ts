@@ -1,6 +1,6 @@
 export interface NotificationPattern {
     success: boolean;
-    name: string | number | symbol;
+    key: string | number | symbol;
     error: string;
     description?: string;
 }
@@ -12,7 +12,7 @@ export interface ResultPattern<T> {
 }
 
 export interface Rule<T> {
-    name: keyof T;
+    key: keyof T;
     error: string;
     runValidate(data: T): boolean | Promise<boolean>;
     description?: string;
