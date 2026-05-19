@@ -16,6 +16,7 @@ export interface Rule<T> {
     error: string;
     runValidate(data: T): boolean | Promise<boolean>;
     description?: string;
+    expectedStatus?: boolean;
 }
 
 export interface Command<T extends object, R extends object> {
