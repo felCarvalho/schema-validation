@@ -35,7 +35,9 @@ export class SchemaValidator<
         for (const rule of this.schema) {
             try {
                 const isValid = await rule.runValidate(data);
-                if (!isValid) {
+                const isExpectedStatus = rule.expectedStatus ?? true;
+
+                if (isValid !== isExpectedStatus) {
                     notification.push(this.notificationMappers(rule));
                 }
             } catch (error) {
