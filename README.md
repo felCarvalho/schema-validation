@@ -572,6 +572,54 @@ const ageValidator = new SchemaValidator<AgeConfig>({
 });
 ```
 
+### Regras com dependência (dependsOn)
+
+O campo `dependsOn` permite declarar relações de dependência entre regras. Uma regra que depende de outra só faz sentido ser validada após a regra da qual depende ter passado. Isso é útil para compor regras complexas e documentar a relação entre validações.
+
+```typescript
+interface PaymentData {
+    amount: number;
+    paymentMethod: string;
+    cardNumber: string;
+    installments: number;
+}
+
+const paymentValidator = new SchemaValidator<PaymentData>({
+    schema: [
+        {
+            key: "paymentMethod",
+            error: "Método de pagamento inválido",
+            runValidate: (data) => ["credit", "debit", "pix"].includes(data.paymentMethod),
+        },
+        {
+            key: "cardNumber",
+            error: "Número do cartão inválido",
+            dependsOn: "paymentMethod",
+            description: "Só valida se paymentMethod for credit ou debit",
+            runValidate: (data) => /^\d{13,19}$/.test(data.cardNumber),
+        },
+        {
+            key: "installments",
+            error: "Número de parcelas inválido",
+            dependsOn: ["paymentMethod", "cardNumber"],
+            description: "Depende do método de pagamento e cartão válido",
+            runValidate: (data) =>
+                data.installments >= 1 && data.installments <= 12,
+        },
+    ],
+    notificationMappers: (rule) => ({
+        success: false,
+        key: rule.key,
+        error: rule.error,
+    }),
+    resultMappers: (data, notif) => ({
+        success: notif.length === 0,
+        notification: notif,
+        data,
+    }),
+});
+```
+
 ## NotificationPattern
 
 Estrutura padronizada de notificação de erro:
