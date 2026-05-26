@@ -32,12 +32,12 @@ export class SchemaValidator<
 
     async validation(data: T) {
         const notification: N[] = [];
+
         for (const rule of this.schema) {
             try {
                 const isValid = await rule.runValidate(data);
-                const isExpectedStatus = rule.expectedStatus ?? true;
 
-                if (isValid !== isExpectedStatus) {
+                if (!isValid) {
                     notification.push(this.notificationMappers(rule));
                 }
             } catch (error) {

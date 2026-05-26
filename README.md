@@ -572,56 +572,6 @@ const ageValidator = new SchemaValidator<AgeConfig>({
 });
 ```
 
-### Validação com expectedStatus
-
-A propriedade `expectedStatus` permite inverter a lógica da validação. Por padrão, a regra falha quando `runValidate` retorna `false`. Com `expectedStatus: false`, a regra falha quando `runValidate` retorna `true`.
-
-```typescript
-interface Product {
-    id: string;
-    name: string;
-    category: string;
-}
-
-const blockedCategories = ["spam", "scam", "illegal"];
-
-const productValidator = new SchemaValidator<Product>({
-    schema: [
-        {
-            key: "name",
-            error: "Nome é obrigatório",
-            runValidate: (data) => data.name.trim().length > 0,
-        },
-        {
-            key: "category",
-            error: "Categoria bloqueada",
-            description: "Impede categorias proibidas",
-            expectedStatus: false,
-            runValidate: (data) => blockedCategories.includes(data.category),
-        },
-    ],
-    notificationMappers: (rule) => ({
-        success: false,
-        key: rule.key,
-        error: rule.error,
-    }),
-    resultMappers: (data, notif) => ({
-        success: notif.length === 0,
-        notification: notif,
-        data,
-    }),
-});
-
-// Válido: categoria não está na lista bloqueada
-await productValidator.execute({ id: "1", name: "Produto A", category: "books" });
-// result.success === true
-
-// Inválido: categoria "spam" está na lista bloqueada
-await productValidator.execute({ id: "2", name: "Produto B", category: "spam" });
-// result.success === false
-// result.notification[0].error === "Categoria bloqueada"
-```
-
 ## NotificationPattern
 
 Estrutura padronizada de notificação de erro:
@@ -657,7 +607,6 @@ interface Rule<T> {
     error: string;
     runValidate(data: T): boolean | Promise<boolean>;
     description?: string;
-    expectedStatus?: boolean;
 }
 ```
 
@@ -680,4 +629,4 @@ interface Command<T extends object, R extends object> {
 - **Suporte a sync e async** - Funciona com funções síncronas e assíncronas
 - **Validação contínua** - Executa todas as regras e retorna todos os erros
 - **Totalmente tipado** - TypeScript nativo
-- **expectedStatus** - Controle opcional para inverter a lógica de validação
+
