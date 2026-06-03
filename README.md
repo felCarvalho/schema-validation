@@ -21,6 +21,7 @@ Biblioteca de validação simples, leve e agnóstica com **NotificationPattern**
   - [Combinar transform + condition + abortEarly](#combinar-transform--condition--abortearly)
   - [Criar padrões customizados](#criar-padrões-customizados)
   - [Integrar com APIs REST](#integrar-com-apis-rest)
+  - [Passar contexto para as regras](#passar-contexto-para-as-regras)
 - [API Reference](#api-reference)
 - [Funcionalidades](#funcionalidades)
 - [Licença](#licença)
@@ -61,7 +62,7 @@ A biblioteca implementa três padrões de design que trabalham juntos:
 ┌─────────────────────────────────────────────────────────────┐
 │                     SchemaValidator                         │
 │                                                             │
-│  execute(data) ──────────────────────────────────────────►  │
+│  execute(data, context) ─────────────────────────────────►  │
 │                                                             │
 │  Schema (Rule[])                                            │
 │  ┌─────────┐   ┌─────────┐   ┌─────────┐                   │
@@ -87,7 +88,7 @@ A biblioteca implementa três padrões de design que trabalham juntos:
 
 ### Os três padrões
 
-**Command Pattern** — `SchemaValidator` implementa `Command<T, R>`. Você instancia com um schema e chama `execute(data)`. O validator encapsula toda a lógica de execução.
+**Command Pattern** — `SchemaValidator` implementa `Command<T, R, C>`. Você instancia com um schema e chama `execute(data, context)`. O validator encapsula toda a lógica de execução.
 
 **Notification Pattern** — Cada falha de validação gera uma `Notification` com `key` (campo), `error` (mensagem) e `description` (detalhe opcional). Todas as notificações são coletadas em um array.
 
@@ -97,10 +98,10 @@ A biblioteca implementa três padrões de design que trabalham juntos:
 
 ```
 para cada rule:
-  1. transform(data)      → modifica os dados (encadeado entre regras)
-  2. condition(data)      → se false, pula a regra
-  3. runValidate(data)    → executa a validação
-  4. se inválido → notificationMappers(rule, data) → adiciona ao array
+  1. transform(data, context)      → modifica os dados (encadeado entre regras)
+  2. condition(data, context)      → se false, pula a regra
+  3. runValidate(data, context)    → executa a validação
+  4. se inválido → notificationMappers(rule, data, context) → adiciona ao array
 ```
 
 ---
@@ -217,17 +218,17 @@ Por padrão, **todas as regras são executadas** e **todos os erros são coletad
 ### Anatomia de uma Rule
 
 ```typescript
-interface Rule<T> {
-  key: keyof T;                                    // campo que está sendo validado
-  error: (data: T) => string;                       // mensagem de erro (pode ser dinâmica)
-  transform?: (data: T) => T | Promise<T>;          // transforma dados antes da validação
-  condition?: (data: T) => boolean | Promise<boolean>; // se false, regra é ignorada
-  runValidate(data: T): boolean | Promise<boolean>; // lógica da validação
-  description?: (data: T) => string;                 // descrição opcional (pode ser dinâmica)
+interface Rule<T, C> {
+  key: keyof T;                                               // campo que está sendo validado
+  error: (data: T, context: C) => string;                     // mensagem de erro (pode ser dinâmica)
+  transform?: (data: T, context: C) => T | Promise<T>;        // transforma dados antes da validação
+  condition?: (data: T, context: C) => boolean | Promise<boolean>; // se false, regra é ignorada
+  runValidate(data: T, context: C): boolean | Promise<boolean>; // lógica da validação
+  description?: (data: T, context: C) => string;              // descrição opcional (pode ser dinâmica)
 }
 ```
 
-Todos os callbacks (`transform`, `condition`, `runValidate`, `error`) suportam tanto execução **síncrona** quanto **assíncrona** (retornando `Promise`).
+Todos os callbacks (`transform`, `condition`, `runValidate`, `error`, `description`) suportam tanto execução **síncrona** quanto **assíncrona** (retornando `Promise`). Todos recebem `(data, context)` — permitindo passar dependências externas como conexão de banco, request object, etc.
 
 ### NotificationPattern
 
@@ -259,12 +260,12 @@ interface ResultPattern<T> {
 Os mappers traduzem a regra e os dados para os formatos de notificação e resultado. Use-os quando precisar de estruturas diferentes da padrão:
 
 ```typescript
-// Mapper de notificação — transforma Rule + data em NotificationPattern
-notificationMappers: (rule, data) => ({
+// Mapper de notificação — transforma Rule + data + context em NotificationPattern
+notificationMappers: (rule, data, context) => ({
   success: false,
   key: rule.key,
-  error: rule.error(data),
-  description: rule.description?.(data),
+  error: rule.error(data, context),
+  description: rule.description?.(data, context),
 })
 
 // Mapper de resultado — transforma data + notificações em ResultPattern
@@ -277,13 +278,13 @@ resultMappers: (data, notif) => ({
 
 Se você **não fornecer mappers**, a biblioteca usa os defaults — que produzem exatamente as estruturas acima. Forneça mappers customizados apenas quando seu `NotificationPattern` ou `ResultPattern` tiverem campos extras.
 
-### Command\<T, R\>
+### Command\<T, R, C\>
 
 Interface que `SchemaValidator` implementa:
 
 ```typescript
-interface Command<T extends object, R extends object> {
-  execute(data: T): Promise<R>;
+interface Command<T extends object, R extends object, C extends object> {
+  execute(data: T, context: C): Promise<R>;
 }
 ```
 
@@ -835,24 +836,61 @@ const result = await apiValidator.execute({
 
 ---
 
+### Passar contexto para as regras
+
+O parâmetro genérico `C` permite passar um objeto de contexto (`context`) que fica disponível em todos os callbacks das regras. Isso é útil para injetar dependências como conexão de banco, objetos de request, ou qualquer dado externo.
+
+```typescript
+interface DatabaseCtx {
+  db: DatabaseConnection;
+  userId: string;
+}
+
+interface User {
+  email: string;
+}
+
+const validator = new SchemaValidator<User, NotificationPattern, ResultPattern<User>, DatabaseCtx>({
+  schema: [
+    {
+      key: "email",
+      error: (data, ctx) => `Email já cadastrado para o usuário ${ctx.userId}`,
+      description: (data, ctx) => `Verifica unicidade do email no tenant ${ctx.userId}`,
+      runValidate: async (data, ctx) => {
+        const exists = await ctx.db.findByEmail(data.email);
+        return !exists;
+      },
+    },
+  ],
+});
+
+const db = await connectToDatabase();
+const result = await validator.execute({ email: "teste@email.com" }, { db, userId: "usr_123" });
+```
+
+Por padrão, `C = {}` — se você não passa contexto, o TypeScript não exige o segundo argumento no `execute()` e os callbacks recebem `{}` como `context`.
+
+---
+
 ## API Reference
 
-### `SchemaValidator<T, N, R>`
+### `SchemaValidator<T, N, R, C>`
 
-Classe principal. Implementa `Command<T, R>`.
+Classe principal. Implementa `Command<T, R, C>`.
 
 | Parâmetro genérico | Default | Descrição |
 |---|---|---|
 | `T extends object` | — | Tipo do objeto a ser validado |
 | `N extends NotificationPattern` | `NotificationPattern` | Tipo da notificação de erro |
 | `R extends ResultPattern<T>` | `ResultPattern<T>` | Tipo do resultado |
+| `C extends object` | `{}` | Contexto passado para todos os callbacks das regras |
 
 **Construtor:**
 
 ```typescript
-new SchemaValidator<T, N, R>({
-  schema: Rule<T>[];
-  notificationMappers?: (rule: Rule<T>, data: T) => N;
+new SchemaValidator<T, N, R, C>({
+  schema: Rule<T, C>[];
+  notificationMappers?: (rule: Rule<T, C>, data: T, context: C) => N;
   resultMappers?: (data: T, notif: N[]) => R;
   abortEarly?: boolean;
 })
@@ -869,8 +907,8 @@ new SchemaValidator<T, N, R>({
 
 | Método | Retorno | Descrição |
 |---|---|---|
-| `execute(data: T)` | `Promise<R>` | Executa todas as regras e retorna o resultado |
-| `validation(data: T)` | `Promise<R>` | Alias interno — mesmo comportamento de `execute` |
+| `execute(data: T, context: C)` | `Promise<R>` | Executa todas as regras e retorna o resultado |
+| `validation(data: T, context: C)` | `Promise<R>` | Alias interno — mesmo comportamento de `execute` |
 
 ### Tipos exportados
 
@@ -883,16 +921,16 @@ import type {
 } from "@felipe-lib/schema-local/types";
 ```
 
-#### `Rule<T>`
+#### `Rule<T, C>`
 
 ```typescript
-interface Rule<T> {
+interface Rule<T, C> {
   key: keyof T;
-  error: (data: T) => string;
-  transform?: (data: T) => T | Promise<T>;
-  condition?: (data: T) => boolean | Promise<boolean>;
-  runValidate(data: T): boolean | Promise<boolean>;
-  description?: (data: T) => string;
+  error: (data: T, context: C) => string;
+  transform?: (data: T, context: C) => T | Promise<T>;
+  condition?: (data: T, context: C) => boolean | Promise<boolean>;
+  runValidate(data: T, context: C): boolean | Promise<boolean>;
+  description?: (data: T, context: C) => string;
 }
 ```
 
@@ -917,11 +955,11 @@ interface ResultPattern<T> {
 }
 ```
 
-#### `Command<T, R>`
+#### `Command<T, R, C>`
 
 ```typescript
-interface Command<T extends object, R extends object> {
-  execute(data: T): Promise<R>;
+interface Command<T extends object, R extends object, C extends object> {
+  execute(data: T, context: C): Promise<R>;
 }
 ```
 
