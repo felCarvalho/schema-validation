@@ -11,15 +11,15 @@ export interface ResultPattern<T> {
     data: T;
 }
 
-export interface Rule<T> {
+export interface Rule<T, C> {
     key: keyof T;
-    error: (data: T) => string;
-    transform?: (data: T) => T | Promise<T>;
-    condition?: (data: T) => boolean | Promise<boolean>;
-    runValidate(data: T): boolean | Promise<boolean>;
-    description?: string;
+    error: (data: T, context: C) => string;
+    transform?: (data: T, context: C) => T | Promise<T>;
+    condition?: (data: T, context: C) => boolean | Promise<boolean>;
+    runValidate(data: T, context: C): boolean | Promise<boolean>;
+    description?: (data: T, context: C) => string;
 }
 
-export interface Command<T extends object, R extends object> {
-    execute(data: T): Promise<R>;
+export interface Command<T extends object, R extends object, C extends object> {
+    execute(data: T, context: C): Promise<R>;
 }
