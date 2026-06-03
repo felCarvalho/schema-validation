@@ -182,7 +182,7 @@ const validator = new SchemaValidator<User>({
     {
       key: "age",
       error: () => "Idade deve ser maior que 0",
-      description: "Verifica se a idade é positiva",
+      description: () => "Verifica se a idade é positiva",
       runValidate: (data) => data.age > 0,
     },
   ],
@@ -223,7 +223,7 @@ interface Rule<T> {
   transform?: (data: T) => T | Promise<T>;          // transforma dados antes da validação
   condition?: (data: T) => boolean | Promise<boolean>; // se false, regra é ignorada
   runValidate(data: T): boolean | Promise<boolean>; // lógica da validação
-  description?: string;                             // descrição opcional do que a regra faz
+  description?: (data: T) => string;                 // descrição opcional (pode ser dinâmica)
 }
 ```
 
@@ -264,7 +264,7 @@ notificationMappers: (rule, data) => ({
   success: false,
   key: rule.key,
   error: rule.error(data),
-  description: rule.description,
+  description: rule.description?.(data),
 })
 
 // Mapper de resultado — transforma data + notificações em ResultPattern
@@ -367,7 +367,7 @@ const loginValidator = new SchemaValidator<LoginData>({
     {
       key: "email",
       error: () => "Usuário não encontrado",
-      description: "Verifica se o email existe na base",
+      description: () => "Verifica se o email existe na base",
       runValidate: async (data) => {
         const response = await fetch("/api/verify-user", {
           method: "POST",
@@ -431,7 +431,7 @@ interface User {
 const isRequired = (field: keyof User, error: string) => ({
   key: field,
   error: () => error,
-  description: `Verifica se ${String(field)} foi fornecido`,
+  description: () => `Verifica se ${String(field)} foi fornecido`,
   runValidate: (data: User) => {
     const value = data[field];
     return typeof value === "string" ? value.trim().length > 0 : !!value;
@@ -441,7 +441,7 @@ const isRequired = (field: keyof User, error: string) => ({
 const isEmail = (error: string) => ({
   key: "email" as const,
   error: () => error,
-  description: "Valida formato do email",
+  description: () => "Valida formato do email",
   runValidate: (data: User) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
 });
@@ -449,7 +449,7 @@ const isEmail = (error: string) => ({
 const minLength = (field: keyof User, min: number, error: string) => ({
   key: field,
   error: () => error,
-  description: `Mínimo de ${min} caracteres`,
+  description: () => `Mínimo de ${min} caracteres`,
   runValidate: (data: User) => {
     const value = data[field];
     return typeof value === "string" ? value.length >= min : false;
@@ -459,7 +459,7 @@ const minLength = (field: keyof User, min: number, error: string) => ({
 const passwordsMatch = {
   key: "confirmPassword" as const,
   error: () => "Senhas não conferem",
-  description: "Confirmação deve ser igual à senha",
+  description: () => "Confirmação deve ser igual à senha",
   runValidate: (data: User) => data.password === data.confirmPassword,
 };
 
@@ -892,7 +892,7 @@ interface Rule<T> {
   transform?: (data: T) => T | Promise<T>;
   condition?: (data: T) => boolean | Promise<boolean>;
   runValidate(data: T): boolean | Promise<boolean>;
-  description?: string;
+  description?: (data: T) => string;
 }
 ```
 
