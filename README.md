@@ -173,68 +173,6 @@ const loginValidator = new SchemaValidator<LoginData>({
 });
 ```
 
-### Validação condicional
-
-```typescript
-interface FormData {
-    type: "individual" | "company";
-    cpf: string;
-    cnpj: string;
-    companyName: string;
-}
-
-const formValidator = new SchemaValidator<FormData>({
-    schema: [
-        {
-            key: "type",
-            error: () => "Tipo inválido",
-            runValidate: (data) =>
-                ["individual", "company"].includes(data.type),
-        },
-        {
-            key: "cpf",
-            error: () => "CPF inválido",
-            runValidate: (data) => {
-                if (data.type === "individual") {
-                    return /^\d{11}$/.test(data.cpf);
-                }
-                return true;
-            },
-        },
-        {
-            key: "cnpj",
-            error: () => "CNPJ inválido",
-            runValidate: (data) => {
-                if (data.type === "company") {
-                    return /^\d{14}$/.test(data.cnpj);
-                }
-                return true;
-            },
-        },
-        {
-            key: "companyName",
-            error: () => "Razão social obrigatória",
-            runValidate: (data) => {
-                if (data.type === "company") {
-                    return data.companyName.length > 0;
-                }
-                return true;
-            },
-        },
-    ],
-    notificationMappers: (rule, data) => ({
-        success: false,
-        key: rule.key,
-        error: rule.error(data),
-    }),
-    resultMappers: (data, notif) => ({
-        success: notif.length === 0,
-        notification: notif,
-        data,
-    }),
-});
-```
-
 ### Validação de arrays
 
 ```typescript
@@ -405,16 +343,15 @@ const registrationValidator = new SchemaValidator<RegistrationForm>({
 ### Custom Notification Pattern
 
 ```typescript
-interface CustomNotification {
+interface CustomNotification extends NotificationPattern {
     field: string;
     message: string;
     type: "error" | "warning";
 }
 
-interface CustomResult<T> {
+interface CustomResult<T> extends ResultPattern<T> {
     isValid: boolean;
     errors: CustomNotification[];
-    data: T;
 }
 
 const validator = new SchemaValidator<User, CustomNotification, CustomResult<User>>({
@@ -427,11 +364,16 @@ const validator = new SchemaValidator<User, CustomNotification, CustomResult<Use
         },
     ],
     notificationMappers: (rule, data) => ({
+        success: false,
+        key: rule.key,
+        error: rule.error(data),
         field: String(rule.key),
         message: rule.error(data),
         type: "error" as const,
     }),
     resultMappers: (data, notif) => ({
+        success: notif.length === 0,
+        notification: notif as NotificationPattern[],
         isValid: notif.length === 0,
         errors: notif,
         data,
@@ -441,8 +383,7 @@ const validator = new SchemaValidator<User, CustomNotification, CustomResult<Use
 const result = await validator.execute({
     name: "João",
     email: "invalid-email",
-    password: "12345678",
-    confirmPassword: "12345678",
+    age: 25,
 });
 
 console.log(result.isValid); // false
@@ -453,7 +394,7 @@ console.log(result.errors[0].type); // "error"
 ### Custom Result Pattern
 
 ```typescript
-interface ApiResponse<T> {
+interface ApiResponse<T> extends ResultPattern<T> {
     status: number;
     message: string;
     payload?: T;
@@ -469,18 +410,24 @@ const apiValidator = new SchemaValidator<User, CustomNotification, ApiResponse<U
             runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
         },
         {
-            key: "password",
-            error: () => "Senha muito curta",
-            description: "Senha deve ter pelo menos 8 caracteres",
-            runValidate: (data) => data.password.length >= 8,
+            key: "email",
+            error: () => "Email não pode estar vazio",
+            description: "Verifica se o email foi preenchido",
+            runValidate: (data) => data.email.trim().length > 0,
         },
     ],
     notificationMappers: (rule, data) => ({
+        success: false,
+        key: rule.key,
+        error: rule.error(data),
         field: String(rule.key),
         message: rule.error(data),
         type: "error" as const,
     }),
     resultMappers: (data, notif) => ({
+        success: notif.length === 0,
+        notification: notif as NotificationPattern[],
+        data,
         status: notif.length === 0 ? 200 : 400,
         message: notif.length === 0 ? "Success" : "Validation failed",
         payload: notif.length === 0 ? data : undefined,
@@ -491,12 +438,11 @@ const apiValidator = new SchemaValidator<User, CustomNotification, ApiResponse<U
 const result = await apiValidator.execute({
     name: "João",
     email: "joao@example.com",
-    password: "123",
-    confirmPassword: "123",
+    age: 25,
 });
 
-console.log(result.status); // 400
-console.log(result.errors); // [{ field: "password", reason: "Senha muito curta" }]
+console.log(result.status); // 200
+console.log(result.errors); // []
 ```
 
 ### Validação com mensagens customizadas por campo
