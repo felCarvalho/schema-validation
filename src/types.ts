@@ -13,7 +13,9 @@ export interface ResultPattern<T> {
 
 export interface Rule<T> {
     key: keyof T;
-    error: string;
+    error: (data: T) => string;
+    transform?: (data: T) => T | Promise<T>;
+    condition?: (data: T) => boolean | Promise<boolean>;
     runValidate(data: T): boolean | Promise<boolean>;
     description?: string;
 }
