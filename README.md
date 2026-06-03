@@ -23,22 +23,22 @@ const validator = new SchemaValidator<User>({
     schema: [
         {
             key: "name",
-            error: "Nome é obrigatório",
+            error: () => "Nome é obrigatório",
             description: "Verifica se o nome foi fornecido",
             runValidate: (data: User) => data.name.trim().length > 0,
         },
         {
             key: "email",
-            error: "Email inválido",
+            error: () => "Email inválido",
             description: "Valida formato do email",
             runValidate: (data: User) =>
                 /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
         },
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         success: false,
         key: rule.key,
-        error: rule.error,
+        error: rule.error(data),
         description: rule.description,
     }),
     resultMappers: (data, notif) => ({
@@ -78,19 +78,19 @@ const addressValidator = new SchemaValidator<Address>({
     schema: [
         {
             key: "street",
-            error: "Rua é obrigatória",
+            error: () => "Rua é obrigatória",
             runValidate: (data) => data.street.length > 0,
         },
         {
             key: "zipCode",
-            error: "CEP inválido",
+            error: () => "CEP inválido",
             runValidate: (data) => /^\d{5}-\d{3}$/.test(data.zipCode),
         },
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         success: false,
         key: rule.key,
-        error: rule.error,
+        error: rule.error(data),
     }),
     resultMappers: (data, notif) => ({
         success: notif.length === 0,
@@ -103,22 +103,22 @@ const userValidator = new SchemaValidator<User>({
     schema: [
         {
             key: "name",
-            error: "Nome é obrigatório",
+            error: () => "Nome é obrigatório",
             runValidate: (data) => data.name.trim().length > 0,
         },
         {
             key: "address",
-            error: "Endereço inválido",
+            error: () => "Endereço inválido",
             runValidate: async (data) => {
                 const result = await addressValidator.execute(data.address);
                 return result.success;
             },
         },
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         success: false,
         key: rule.key,
-        error: rule.error,
+        error: rule.error(data),
     }),
     resultMappers: (data, notif) => ({
         success: notif.length === 0,
@@ -140,17 +140,17 @@ const loginValidator = new SchemaValidator<LoginData>({
     schema: [
         {
             key: "email",
-            error: "Email é obrigatório",
+            error: () => "Email é obrigatório",
             runValidate: (data) => !!data.email,
         },
         {
             key: "password",
-            error: "Senha deve ter pelo menos 8 caracteres",
+            error: () => "Senha deve ter pelo menos 8 caracteres",
             runValidate: (data) => data.password.length >= 8,
         },
         {
             key: "email",
-            error: "Usuário não existe",
+            error: () => "Usuário não existe",
             runValidate: async (data) => {
                 const response = await fetch("/api/verify-user", {
                     method: "POST",
@@ -160,10 +160,10 @@ const loginValidator = new SchemaValidator<LoginData>({
             },
         },
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         success: false,
         key: rule.key,
-        error: rule.error,
+        error: rule.error(data),
     }),
     resultMappers: (data, notif) => ({
         success: notif.length === 0,
@@ -187,13 +187,13 @@ const formValidator = new SchemaValidator<FormData>({
     schema: [
         {
             key: "type",
-            error: "Tipo inválido",
+            error: () => "Tipo inválido",
             runValidate: (data) =>
                 ["individual", "company"].includes(data.type),
         },
         {
             key: "cpf",
-            error: "CPF inválido",
+            error: () => "CPF inválido",
             runValidate: (data) => {
                 if (data.type === "individual") {
                     return /^\d{11}$/.test(data.cpf);
@@ -203,7 +203,7 @@ const formValidator = new SchemaValidator<FormData>({
         },
         {
             key: "cnpj",
-            error: "CNPJ inválido",
+            error: () => "CNPJ inválido",
             runValidate: (data) => {
                 if (data.type === "company") {
                     return /^\d{14}$/.test(data.cnpj);
@@ -213,7 +213,7 @@ const formValidator = new SchemaValidator<FormData>({
         },
         {
             key: "companyName",
-            error: "Razão social obrigatória",
+            error: () => "Razão social obrigatória",
             runValidate: (data) => {
                 if (data.type === "company") {
                     return data.companyName.length > 0;
@@ -222,10 +222,10 @@ const formValidator = new SchemaValidator<FormData>({
             },
         },
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         success: false,
         key: rule.key,
-        error: rule.error,
+        error: rule.error(data),
     }),
     resultMappers: (data, notif) => ({
         success: notif.length === 0,
@@ -251,26 +251,26 @@ const orderValidator = new SchemaValidator<Order>({
     schema: [
         {
             key: "items",
-            error: "Pedido vazio",
+            error: () => "Pedido vazio",
             runValidate: (data) => data.items.length > 0,
         },
         {
             key: "items",
-            error: "Produto sem nome",
+            error: () => "Produto sem nome",
             runValidate: (data) =>
                 data.items.every((item) => item.name.trim().length > 0),
         },
         {
             key: "items",
-            error: "Preço inválido",
+            error: () => "Preço inválido",
             runValidate: (data) =>
                 data.items.every((item) => item.price > 0),
         },
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         success: false,
         key: rule.key,
-        error: rule.error,
+        error: rule.error(data),
     }),
     resultMappers: (data, notif) => ({
         success: notif.length === 0,
@@ -292,7 +292,7 @@ interface User {
 
 const isRequired = (field: keyof User, error: string) => ({
     key: field,
-    error,
+    error: () => error,
     description: `Verifica se ${String(field)} foi fornecido`,
     runValidate: (data: User) => {
         const value = data[field];
@@ -302,7 +302,7 @@ const isRequired = (field: keyof User, error: string) => ({
 
 const isEmail = (error: string) => ({
     key: "email" as const,
-    error,
+    error: () => error,
     description: "Valida formato do email",
     runValidate: (data: User) =>
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
@@ -310,7 +310,7 @@ const isEmail = (error: string) => ({
 
 const minLength = (field: keyof User, min: number, error: string) => ({
     key: field,
-    error,
+    error: () => error,
     description: `Verifica mínimo de ${min} caracteres`,
     runValidate: (data: User) => {
         const value = data[field];
@@ -320,7 +320,7 @@ const minLength = (field: keyof User, min: number, error: string) => ({
 
 const passwordsMatch = {
     key: "confirmPassword" as const,
-    error: "Senhas não conferem",
+    error: () => "Senhas não conferem",
     description: "Confirmação de senha deve ser igual à senha",
     runValidate: (data: User) => data.password === data.confirmPassword,
 };
@@ -332,10 +332,10 @@ const validator = new SchemaValidator<User>({
         minLength("password", 8, "Senha deve ter pelo menos 8 caracteres"),
         passwordsMatch,
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         success: false,
         key: rule.key,
-        error: rule.error,
+        error: rule.error(data),
     }),
     resultMappers: (data, notif) => ({
         success: notif.length === 0,
@@ -360,28 +360,28 @@ const registrationValidator = new SchemaValidator<RegistrationForm>({
     schema: [
         {
             key: "name",
-            error: "Nome completo é obrigatório",
+            error: () => "Nome completo é obrigatório",
             runValidate: (data) => data.name.split(" ").length >= 2,
         },
         {
             key: "email",
-            error: "Email inválido",
+            error: () => "Email inválido",
             runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
         },
         {
             key: "phone",
-            error: "Telefone inválido",
+            error: () => "Telefone inválido",
             runValidate: (data) => /^\(\d{2}\)\s\d{4,5}-\d{4}$/.test(data.phone),
         },
         {
             key: "password",
-            error: "Senha deve ter letras e números",
+            error: () => "Senha deve ter letras e números",
             runValidate: (data) =>
                 /[a-zA-Z]/.test(data.password) && /[0-9]/.test(data.password),
         },
         {
             key: "birthDate",
-            error: "Data de nascimento inválida",
+            error: () => "Data de nascimento inválida",
             runValidate: (data) => {
                 const date = new Date(data.birthDate);
                 const now = new Date();
@@ -389,10 +389,10 @@ const registrationValidator = new SchemaValidator<RegistrationForm>({
             },
         },
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         success: false,
         key: rule.key,
-        error: rule.error,
+        error: rule.error(data),
     }),
     resultMappers: (data, notif) => ({
         success: notif.length === 0,
@@ -421,14 +421,14 @@ const validator = new SchemaValidator<User, CustomNotification, CustomResult<Use
     schema: [
         {
             key: "email",
-            error: "Email inválido",
+            error: () => "Email inválido",
             description: "Valida formato do email",
             runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
         },
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         field: String(rule.key),
-        message: rule.error,
+        message: rule.error(data),
         type: "error" as const,
     }),
     resultMappers: (data, notif) => ({
@@ -464,20 +464,20 @@ const apiValidator = new SchemaValidator<User, CustomNotification, ApiResponse<U
     schema: [
         {
             key: "email",
-            error: "Email inválido",
+            error: () => "Email inválido",
             description: "Valida formato do email",
             runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
         },
         {
             key: "password",
-            error: "Senha muito curta",
+            error: () => "Senha muito curta",
             description: "Senha deve ter pelo menos 8 caracteres",
             runValidate: (data) => data.password.length >= 8,
         },
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         field: String(rule.key),
-        message: rule.error,
+        message: rule.error(data),
         type: "error" as const,
     }),
     resultMappers: (data, notif) => ({
@@ -517,15 +517,15 @@ const validator = new SchemaValidator<FormInput>({
     schema: [
         {
             key: "field",
-            error: fieldMessages["username"],
+            error: () => fieldMessages["username"],
             description: "Valida username",
             runValidate: (data) => /^[a-zA-Z0-9_]{3,20}$/.test(data.value),
         },
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         success: false,
         key: rule.key,
-        error: rule.error,
+        error: rule.error(data),
     }),
     resultMappers: (data, notif) => ({
         success: notif.length === 0,
@@ -553,16 +553,16 @@ const ageValidator = new SchemaValidator<AgeConfig>({
     schema: [
         {
             key: "userAge",
-            error: `Idade deve estar entre minAge e maxAge`,
+            error: () => `Idade deve estar entre minAge e maxAge`,
             description: "Valida idade dentro do intervalo",
             runValidate: (data) =>
                 data.userAge >= data.minAge && data.userAge <= data.maxAge,
         },
     ],
-    notificationMappers: (rule) => ({
+    notificationMappers: (rule, data) => ({
         success: false,
         key: rule.key,
-        error: rule.error,
+        error: rule.error(data),
     }),
     resultMappers: (data, notif) => ({
         success: notif.length === 0,
@@ -570,6 +570,301 @@ const ageValidator = new SchemaValidator<AgeConfig>({
         data,
     }),
 });
+```
+
+### Transformação de dados (`transform`)
+
+O campo `transform` permite modificar os dados antes da validação. O resultado é encadeado entre regras — cada regra recebe os dados já transformados pelas regras anteriores.
+
+```typescript
+interface User {
+    name: string;
+    email: string;
+    age: number;
+}
+
+const validator = new SchemaValidator<User>({
+    schema: [
+        {
+            key: "name",
+            error: () => "Nome é obrigatório",
+            transform: (data) => ({
+                ...data,
+                name: data.name.trim(),
+            }),
+            runValidate: (data) => data.name.length > 0,
+        },
+        {
+            key: "email",
+            error: () => "Email inválido",
+            transform: (data) => ({
+                ...data,
+                email: data.email.toLowerCase().trim(),
+            }),
+            runValidate: (data) =>
+                /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
+        },
+    ],
+    notificationMappers: (rule, data) => ({
+        success: false,
+        key: rule.key,
+        error: rule.error(data),
+    }),
+    resultMappers: (data, notif) => ({
+        success: notif.length === 0,
+        notification: notif,
+        data,
+    }),
+});
+
+const result = await validator.execute({
+    name: "  João  ",
+    email: "  JOAO@EXAMPLE.COM  ",
+    age: 25,
+});
+
+console.log(result.data.name); // "João"
+console.log(result.data.email); // "joao@example.com"
+```
+
+**Transform assíncrono:**
+
+```typescript
+const validator = new SchemaValidator<User>({
+    schema: [
+        {
+            key: "email",
+            error: () => "Email já cadastrado",
+            transform: async (data) => {
+                const normalized = data.email.toLowerCase().trim();
+                return { ...data, email: normalized };
+            },
+            runValidate: async (data) => {
+                const response = await fetch(`/api/check-email?email=${data.email}`);
+                const { exists } = await response.json();
+                return !exists;
+            },
+        },
+    ],
+    notificationMappers: (rule, data) => ({
+        success: false,
+        key: rule.key,
+        error: rule.error(data),
+    }),
+    resultMappers: (data, notif) => ({
+        success: notif.length === 0,
+        notification: notif,
+        data,
+    }),
+});
+```
+
+### Validação condicional (`condition`)
+
+O campo `condition` determina se uma regra deve ser executada. Se a condição retornar `false`, a regra é ignorada.
+
+```typescript
+interface FormData {
+    type: "individual" | "company";
+    cpf: string;
+    cnpj: string;
+    companyName: string;
+}
+
+const formValidator = new SchemaValidator<FormData>({
+    schema: [
+        {
+            key: "type",
+            error: () => "Tipo inválido",
+            runValidate: (data) =>
+                ["individual", "company"].includes(data.type),
+        },
+        {
+            key: "cpf",
+            error: () => "CPF inválido",
+            condition: (data) => data.type === "individual",
+            runValidate: (data) => /^\d{11}$/.test(data.cpf),
+        },
+        {
+            key: "cnpj",
+            error: () => "CNPJ inválido",
+            condition: (data) => data.type === "company",
+            runValidate: (data) => /^\d{14}$/.test(data.cnpj),
+        },
+        {
+            key: "companyName",
+            error: () => "Razão social obrigatória",
+            condition: (data) => data.type === "company",
+            runValidate: (data) => data.companyName.length > 0,
+        },
+    ],
+    notificationMappers: (rule, data) => ({
+        success: false,
+        key: rule.key,
+        error: rule.error(data),
+    }),
+    resultMappers: (data, notif) => ({
+        success: notif.length === 0,
+        notification: notif,
+        data,
+    }),
+});
+```
+
+**Condition assíncrona:**
+
+```typescript
+interface ProductForm {
+    categoryId: string;
+    price: number;
+    discount: number;
+}
+
+const validator = new SchemaValidator<ProductForm>({
+    schema: [
+        {
+            key: "discount",
+            error: () => "Desconto inválido",
+            condition: async (data) => {
+                const response = await fetch(`/api/categories/${data.categoryId}`);
+                const category = await response.json();
+                return category.allowDiscount;
+            },
+            runValidate: (data) => data.discount >= 0 && data.discount <= 100,
+        },
+    ],
+    notificationMappers: (rule, data) => ({
+        success: false,
+        key: rule.key,
+        error: rule.error(data),
+    }),
+    resultMappers: (data, notif) => ({
+        success: notif.length === 0,
+        notification: notif,
+        data,
+    }),
+});
+```
+
+### Parada antecipada (`abortEarly`)
+
+Quando `abortEarly: true`, a validação é interrompida assim que o primeiro erro é encontrado.
+
+```typescript
+interface LoginData {
+    email: string;
+    password: string;
+}
+
+const loginValidator = new SchemaValidator<LoginData>({
+    schema: [
+        {
+            key: "email",
+            error: () => "Email é obrigatório",
+            runValidate: (data) => data.email.trim().length > 0,
+        },
+        {
+            key: "email",
+            error: () => "Email inválido",
+            runValidate: (data) =>
+                /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
+        },
+        {
+            key: "password",
+            error: () => "Senha é obrigatória",
+            runValidate: (data) => data.password.length > 0,
+        },
+        {
+            key: "password",
+            error: () => "Senha deve ter pelo menos 8 caracteres",
+            runValidate: (data) => data.password.length >= 8,
+        },
+    ],
+    abortEarly: true,
+    notificationMappers: (rule, data) => ({
+        success: false,
+        key: rule.key,
+        error: rule.error(data),
+    }),
+    resultMappers: (data, notif) => ({
+        success: notif.length === 0,
+        notification: notif,
+        data,
+    }),
+});
+
+const result = await loginValidator.execute({
+    email: "",
+    password: "123",
+});
+
+console.log(result.notification.length); // 1 (apenas o primeiro erro)
+```
+
+### Combinando `transform`, `condition` e `abortEarly`
+
+As features podem ser combinadas livremente. A ordem de execução dentro de cada regra é:
+
+1. `transform` — transforma os dados
+2. `condition` — decide se a regra executa
+3. `runValidate` — executa a validação
+
+```typescript
+interface OrderData {
+    total: number;
+    couponCode: string;
+    finalTotal: number;
+}
+
+const orderValidator = new SchemaValidator<OrderData>({
+    schema: [
+        {
+            key: "total",
+            error: () => "Total deve ser positivo",
+            runValidate: (data) => data.total > 0,
+        },
+        {
+            key: "couponCode",
+            error: () => "Cupom inválido",
+            condition: (data) => data.couponCode.length > 0,
+            transform: async (data) => {
+                const response = await fetch(
+                    `/api/coupons/${data.couponCode}`
+                );
+                const coupon = await response.json();
+                return {
+                    ...data,
+                    finalTotal: data.total * (1 - coupon.discount / 100),
+                };
+            },
+            runValidate: async (data) => {
+                const response = await fetch(
+                    `/api/coupons/${data.couponCode}`
+                );
+                return response.ok;
+            },
+        },
+    ],
+    abortEarly: true,
+    notificationMappers: (rule, data) => ({
+        success: false,
+        key: rule.key,
+        error: rule.error(data),
+    }),
+    resultMappers: (data, notif) => ({
+        success: notif.length === 0,
+        notification: notif,
+        data,
+    }),
+});
+
+const result = await orderValidator.execute({
+    total: 200,
+    couponCode: "BLACK20",
+    finalTotal: 0,
+});
+
+console.log(result.data.finalTotal); // 160 (200 - 20%)
 ```
 
 ## NotificationPattern
@@ -604,7 +899,9 @@ Define uma regra de validação:
 ```typescript
 interface Rule<T> {
     key: keyof T;
-    error: string;
+    error: (data: T) => string;
+    transform?: (data: T) => T | Promise<T>;
+    condition?: (data: T) => boolean | Promise<boolean>;
     runValidate(data: T): boolean | Promise<boolean>;
     description?: string;
 }
@@ -627,6 +924,9 @@ interface Command<T extends object, R extends object> {
 - **ResultPattern** - Resposta padronizada
 - **Custom Mappers** - Personalize os padrões de notificação e resultado
 - **Suporte a sync e async** - Funciona com funções síncronas e assíncronas
+- **Transformação de dados** - Transforme os dados antes da validação com `transform`
+- **Validação condicional** - Execute regras apenas quando uma condição for atendida com `condition`
+- **Parada antecipada** - Interrompa a validação no primeiro erro com `abortEarly`
 - **Validação contínua** - Executa todas as regras e retorna todos os erros
 - **Totalmente tipado** - TypeScript nativo
 
