@@ -1,61 +1,61 @@
 # schemaValidation
 
-Biblioteca de validação simples, leve e agnóstica com **NotificationPattern** e **ResultPattern** para respostas padronizadas.
+A simple, lightweight, and agnostic validation library with **NotificationPattern** and **ResultPattern** for standardized responses.
 
 ---
 
-## Sumário
+## Table of Contents
 
-- [Por que usar?](#por-que-usar)
-- [Modelo Mental](#modelo-mental)
+- [Why?](#why)
+- [Mental Model](#mental-model)
 - [Quick Start](#quick-start)
-- [Conceitos Fundamentais](#conceitos-fundamentais)
-- [Guias Práticos](#guias-práticos)
-  - [Validar objetos aninhados](#validar-objetos-aninhados)
-  - [Validar com chamadas assíncronas](#validar-com-chamadas-assíncronas)
-  - [Validar arrays](#validar-arrays)
-  - [Criar regras reutilizáveis](#criar-regras-reutilizáveis)
-  - [Transformar dados antes de validar](#transformar-dados-antes-de-validar)
-  - [Validar condicionalmente](#validar-condicionalmente)
-  - [Parar no primeiro erro](#parar-no-primeiro-erro)
-  - [Combinar transform + condition + abortEarly](#combinar-transform--condition--abortearly)
-  - [Criar padrões customizados](#criar-padrões-customizados)
-  - [Integrar com APIs REST](#integrar-com-apis-rest)
+- [Core Concepts](#core-concepts)
+- [How-to Guides](#how-to-guides)
+  - [Validate nested objects](#validate-nested-objects)
+  - [Validate with async calls](#validate-with-async-calls)
+  - [Validate arrays](#validate-arrays)
+  - [Create reusable rules](#create-reusable-rules)
+  - [Transform data before validation](#transform-data-before-validation)
+  - [Validate conditionally](#validate-conditionally)
+  - [Stop on first error](#stop-on-first-error)
+  - [Combine transform + condition + abortEarly](#combine-transform--condition--abortearly)
+  - [Create custom patterns](#create-custom-patterns)
+  - [Integrate with REST APIs](#integrate-with-rest-apis)
 - [API Reference](#api-reference)
-- [Funcionalidades](#funcionalidades)
-- [Licença](#licença)
+- [Features](#features)
+- [License](#license)
 
 ---
 
-## Por que usar?
+## Why?
 
-Validar dados é uma das tarefas mais comuns em qualquer aplicação. A maioria das bibliotecas de validação ou é acoplada a um framework, ou força um schema declarativo com DSL própria, ou é pesada em dependências.
+Data validation is one of the most common tasks in any application. Most validation libraries are either framework-coupled, force a declarative schema DSL, or are heavy on dependencies.
 
-O **schemaValidation** adota uma abordagem diferente:
+**schemaValidation** takes a different approach:
 
-| Característica | schemaValidation | Outras libs |
+| Trait | schemaValidation | Other libs |
 |---|---|---|
-| **Dependências** | Zero | Zod (~10), Joi (~15), class-validator (~5) |
-| **Estilo** | Regras como funções puras | DSL declarativa / decorators |
-| **Acoplamento** | Agnóstico (qualquer objeto) | Muitas vezes acoplado a framework |
-| **Padrões** | Notification + Result + Command | Apenas validação |
-| **Tamanho** | ~90 linhas de código | Milhares de linhas |
+| **Dependencies** | Zero | Zod (~10), Joi (~15), class-validator (~5) |
+| **Style** | Rules as pure functions | Declarative DSL / decorators |
+| **Coupling** | Agnostic (any object) | Often framework-bound |
+| **Patterns** | Notification + Result + Command | Validation only |
+| **Size** | ~90 lines of code | Thousands of lines |
 
-**Ideal para:**
-- APIs REST que precisam de respostas estruturadas com lista de erros
-- Validação de formulários, payloads, DTOs
-- Projetos que valorizam zero dependências
-- Quem prefere código imperativo/explícito a DSLs mágicas
+**Ideal for:**
+- REST APIs that need structured error responses with error lists
+- Form validation, payloads, DTOs
+- Projects that value zero dependencies
+- Those who prefer explicit/imperative code over magical DSLs
 
-**Talvez não seja ideal se:**
-- Você precisa de type narrowing por schema (type inference da forma dos dados) — use Zod
-- Você precisa de parsing + validação em cadeia — use Zod
+**Probably not ideal if:**
+- You need type narrowing via schema (inference of data shape) — use Zod
+- You need parsing + validation chaining — use Zod
 
 ---
 
-## Modelo Mental
+## Mental Model
 
-A biblioteca implementa três padrões de design que trabalham juntos:
+The library implements three design patterns working together:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -67,8 +67,8 @@ A biblioteca implementa três padrões de design que trabalham juntos:
 │  ┌─────────┐   ┌─────────┐   ┌─────────┐                   │
 │  │ Rule 1  │──►│ Rule 2  │──►│ Rule 3  │──► ...            │
 │  │         │   │         │   │         │                    │
-│  │ 1. transform (opcional)                                  │
-│  │ 2. condition (opcional)                                  │
+│  │ 1. transform (optional)                                  │
+│  │ 2. condition (optional)                                  │
 │  │ 3. runValidate                                           │
 │  └────┬────┘   └────┬────┘   └────┬────┘                   │
 │       │              │              │                        │
@@ -85,35 +85,35 @@ A biblioteca implementa três padrões de design que trabalham juntos:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Os três padrões
+### The three patterns
 
-**Command Pattern** — `SchemaValidator` implementa `Command<T, R>`. Você instancia com um schema e chama `execute(data)`. O validator encapsula toda a lógica de execução.
+**Command Pattern** — `SchemaValidator` implements `Command<T, R>`. You instantiate with a schema and call `execute(data)`. The validator encapsulates all execution logic.
 
-**Notification Pattern** — Cada falha de validação gera uma `Notification` com `key` (campo), `error` (mensagem) e `description` (detalhe opcional). Todas as notificações são coletadas em um array.
+**Notification Pattern** — Each validation failure generates a `Notification` with `key` (field), `error` (message), and `description` (optional detail). All notifications are collected into an array.
 
-**Result Pattern** — O resultado final é um objeto com `success` (booleano), `notification` (array de notificações) e `data` (dados originais/transformados).
+**Result Pattern** — The final result is an object with `success` (boolean), `notification` (array of notifications), and `data` (original/transformed data).
 
-### Ordem de execução dentro de cada Rule
+### Execution order within each Rule
 
 ```
-para cada rule:
-  1. transform(data)      → modifica os dados (encadeado entre regras)
-  2. condition(data)      → se false, pula a regra
-  3. runValidate(data)    → executa a validação
-  4. se inválido → notificationMappers(rule, data) → adiciona ao array
+for each rule:
+  1. transform(data)      → modifies data (chained across rules)
+  2. condition(data)      → if false, skip the rule
+  3. runValidate(data)    → runs validation
+  4. if invalid → notificationMappers(rule, data) → push to array
 ```
 
 ---
 
 ## Quick Start
 
-### Instalação
+### Installation
 
 ```bash
 npm install @felipe-lib/schema-local
 ```
 
-### Sua primeira validação
+### Your first validation
 
 ```typescript
 import { SchemaValidator } from "@felipe-lib/schema-local";
@@ -127,38 +127,38 @@ const validator = new SchemaValidator<User>({
   schema: [
     {
       key: "name",
-      error: () => "Nome é obrigatório",
+      error: () => "Name is required",
       runValidate: (data) => data.name.trim().length > 0,
     },
     {
       key: "email",
-      error: () => "Email inválido",
+      error: () => "Invalid email",
       runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
     },
   ],
 });
 
 const result = await validator.execute({
-  name: "João",
-  email: "joao@email.com",
+  name: "John",
+  email: "john@email.com",
 });
 
 console.log(result.success); // true
 console.log(result.notification); // []
-console.log(result.data); // { name: "João", email: "joao@email.com" }
+console.log(result.data); // { name: "John", email: "john@email.com" }
 ```
 
-**O que aconteceu aqui?**
+**What happened here?**
 
-1. Criamos uma interface `User` com os campos a validar.
-2. Instanciamos `SchemaValidator<User>` passando um `schema` — array de regras.
-3. Cada regra tem `key` (nome do campo), `error` (mensagem de erro) e `runValidate` (função que retorna `true` se válido).
-4. Chamamos `execute(data)` e recebemos um `ResultPattern` com `success`, `notification` e `data`.
-5. Como o nome e o email eram válidos, `success` é `true` e `notification` está vazio.
+1. We created a `User` interface with the fields to validate.
+2. We instantiated `SchemaValidator<User>` passing a `schema` — an array of rules.
+3. Each rule has `key` (field name), `error` (error message), and `runValidate` (function returning `true` if valid).
+4. We called `execute(data)` and received a `ResultPattern` with `success`, `notification`, and `data`.
+5. Since both name and email were valid, `success` is `true` and `notification` is empty.
 
-> **Nota:** Os mappers são opcionais — a biblioteca já fornece defaults que geram o `NotificationPattern` e `ResultPattern` padrão. Você só precisa customizá-los se quiser formatos diferentes (ex: resposta de API HTTP).
+> **Note:** Mappers are optional — the library already provides defaults that generate the standard `NotificationPattern` and `ResultPattern`. You only need to customize them if you want different formats (e.g., HTTP API responses).
 
-### Adicionando mais regras
+### Adding more rules
 
 ```typescript
 interface User {
@@ -171,30 +171,30 @@ const validator = new SchemaValidator<User>({
   schema: [
     {
       key: "name",
-      error: () => "Nome é obrigatório",
+      error: () => "Name is required",
       runValidate: (data) => data.name.trim().length > 0,
     },
     {
       key: "email",
-      error: () => "Email inválido",
+      error: () => "Invalid email",
       runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
     },
     {
       key: "age",
-      error: () => "Idade deve ser maior que 0",
-      description: "Verifica se a idade é positiva",
+      error: () => "Age must be greater than 0",
+      description: "Checks if age is positive",
       runValidate: (data) => data.age > 0,
     },
   ],
 });
 ```
 
-### Lendo erros
+### Reading errors
 
 ```typescript
 const result = await validator.execute({
   name: "",
-  email: "invalido",
+  email: "invalid",
   age: -5,
 });
 
@@ -203,63 +203,63 @@ if (!result.success) {
     console.log(`${String(err.key)}: ${err.error}`);
   }
 }
-// name: Nome é obrigatório
-// email: Email inválido
-// age: Idade deve ser maior que 0
+// name: Name is required
+// email: Invalid email
+// age: Age must be greater than 0
 ```
 
-Por padrão, **todas as regras são executadas** e **todos os erros são coletados** — você recebe uma lista completa do que está errado, não apenas o primeiro erro.
+By default, **all rules are executed** and **all errors are collected** — you get a full list of what's wrong, not just the first error.
 
 ---
 
-## Conceitos Fundamentais
+## Core Concepts
 
-### Anatomia de uma Rule
+### Rule anatomy
 
 ```typescript
 interface Rule<T> {
-  key: keyof T;                                    // campo que está sendo validado
-  error: (data: T) => string;                       // mensagem de erro (pode ser dinâmica)
-  transform?: (data: T) => T | Promise<T>;          // transforma dados antes da validação
-  condition?: (data: T) => boolean | Promise<boolean>; // se false, regra é ignorada
-  runValidate(data: T): boolean | Promise<boolean>; // lógica da validação
-  description?: string;                             // descrição opcional do que a regra faz
+  key: keyof T;                                    // field being validated
+  error: (data: T) => string;                       // error message (can be dynamic)
+  transform?: (data: T) => T | Promise<T>;          // transforms data before validation
+  condition?: (data: T) => boolean | Promise<boolean>; // if false, rule is skipped
+  runValidate(data: T): boolean | Promise<boolean>; // validation logic
+  description?: string;                             // optional description of what the rule does
 }
 ```
 
-Todos os callbacks (`transform`, `condition`, `runValidate`, `error`) suportam tanto execução **síncrona** quanto **assíncrona** (retornando `Promise`).
+All callbacks (`transform`, `condition`, `runValidate`, `error`) support both **synchronous** and **asynchronous** execution (returning `Promise`).
 
 ### NotificationPattern
 
-Estrutura padronizada de notificação de erro:
+Standardized error notification structure:
 
 ```typescript
 interface NotificationPattern {
-  success: boolean;              // sempre false para notificações de erro
-  key: string | number | symbol; // campo que falhou
-  error: string;                 // mensagem de erro
-  description?: string;          // detalhamento opcional
+  success: boolean;              // always false for error notifications
+  key: string | number | symbol; // field that failed
+  error: string;                 // error message
+  description?: string;          // optional detail
 }
 ```
 
 ### ResultPattern\<T\>
 
-Estrutura padronizada do resultado:
+Standardized result structure:
 
 ```typescript
 interface ResultPattern<T> {
-  success: boolean;                  // true se nenhum erro
-  notification: NotificationPattern[]; // array de erros encontrados
-  data: T;                           // dados originais ou transformados
+  success: boolean;                  // true if no errors
+  notification: NotificationPattern[]; // array of found errors
+  data: T;                           // original or transformed data
 }
 ```
 
-### Mappers Customizados
+### Custom mappers
 
-Os mappers traduzem a regra e os dados para os formatos de notificação e resultado. Use-os quando precisar de estruturas diferentes da padrão:
+Mappers translate the rule and data into the notification and result formats. Use them when you need structures different from the defaults:
 
 ```typescript
-// Mapper de notificação — transforma Rule + data em NotificationPattern
+// Notification mapper — transforms Rule + data into NotificationPattern
 notificationMappers: (rule, data) => ({
   success: false,
   key: rule.key,
@@ -267,7 +267,7 @@ notificationMappers: (rule, data) => ({
   description: rule.description,
 })
 
-// Mapper de resultado — transforma data + notificações em ResultPattern
+// Result mapper — transforms data + notifications into ResultPattern
 resultMappers: (data, notif) => ({
   success: notif.length === 0,
   notification: notif,
@@ -275,11 +275,11 @@ resultMappers: (data, notif) => ({
 })
 ```
 
-Se você **não fornecer mappers**, a biblioteca usa os defaults — que produzem exatamente as estruturas acima. Forneça mappers customizados apenas quando seu `NotificationPattern` ou `ResultPattern` tiverem campos extras.
+If you **don't provide mappers**, the library uses defaults — which produce exactly the structures above. Provide custom mappers only when your `NotificationPattern` or `ResultPattern` has extra fields.
 
 ### Command\<T, R\>
 
-Interface que `SchemaValidator` implementa:
+Interface that `SchemaValidator` implements:
 
 ```typescript
 interface Command<T extends object, R extends object> {
@@ -287,15 +287,15 @@ interface Command<T extends object, R extends object> {
 }
 ```
 
-Isso permite tratar qualquer validador como um comando executável, facilitando integração com padrões como **Command Bus**, **Mediator** ou **Use Case**.
+This allows treating any validator as an executable command, facilitating integration with patterns like **Command Bus**, **Mediator**, or **Use Case**.
 
 ---
 
-## Guias Práticos
+## How-to Guides
 
-### Validar objetos aninhados
+### Validate nested objects
 
-Componha validators: crie um validador para o objeto interno e chame-o dentro da regra do objeto externo.
+Compose validators: create a validator for the inner object and call it within the outer object's rule.
 
 ```typescript
 interface Address {
@@ -312,12 +312,12 @@ const addressValidator = new SchemaValidator<Address>({
   schema: [
     {
       key: "street",
-      error: () => "Rua é obrigatória",
+      error: () => "Street is required",
       runValidate: (data) => data.street.length > 0,
     },
     {
       key: "zipCode",
-      error: () => "CEP inválido",
+      error: () => "Invalid ZIP code",
       runValidate: (data) => /^\d{5}-\d{3}$/.test(data.zipCode),
     },
   ],
@@ -327,12 +327,12 @@ const userValidator = new SchemaValidator<User>({
   schema: [
     {
       key: "name",
-      error: () => "Nome é obrigatório",
+      error: () => "Name is required",
       runValidate: (data) => data.name.trim().length > 0,
     },
     {
       key: "address",
-      error: (data) => "Endereço inválido",
+      error: () => "Invalid address",
       runValidate: async (data) => {
         const result = await addressValidator.execute(data.address);
         return result.success;
@@ -342,9 +342,9 @@ const userValidator = new SchemaValidator<User>({
 });
 ```
 
-### Validar com chamadas assíncronas
+### Validate with async calls
 
-`runValidate` aceita funções assíncronas — ideal para verificar existência no banco, chamadas de API, etc.
+`runValidate` accepts async functions — ideal for checking existence in the database, API calls, etc.
 
 ```typescript
 interface LoginData {
@@ -356,18 +356,18 @@ const loginValidator = new SchemaValidator<LoginData>({
   schema: [
     {
       key: "email",
-      error: () => "Email é obrigatório",
+      error: () => "Email is required",
       runValidate: (data) => !!data.email,
     },
     {
       key: "password",
-      error: () => "Senha deve ter pelo menos 8 caracteres",
+      error: () => "Password must be at least 8 characters",
       runValidate: (data) => data.password.length >= 8,
     },
     {
       key: "email",
-      error: () => "Usuário não encontrado",
-      description: "Verifica se o email existe na base",
+      error: () => "User not found",
+      description: "Checks if the email exists in the database",
       runValidate: async (data) => {
         const response = await fetch("/api/verify-user", {
           method: "POST",
@@ -380,9 +380,9 @@ const loginValidator = new SchemaValidator<LoginData>({
 });
 ```
 
-### Validar arrays
+### Validate arrays
 
-Use métodos como `every()`, `some()` ou `filter()` para validar cada item do array.
+Use methods like `every()`, `some()`, or `filter()` to validate each array item.
 
 ```typescript
 interface Product {
@@ -398,27 +398,27 @@ const orderValidator = new SchemaValidator<Order>({
   schema: [
     {
       key: "items",
-      error: () => "Pedido vazio",
+      error: () => "Order is empty",
       runValidate: (data) => data.items.length > 0,
     },
     {
       key: "items",
-      error: () => "Produto sem nome",
+      error: () => "Product has no name",
       runValidate: (data) =>
         data.items.every((item) => item.name.trim().length > 0),
     },
     {
       key: "items",
-      error: () => "Preço inválido",
+      error: () => "Invalid price",
       runValidate: (data) => data.items.every((item) => item.price > 0),
     },
   ],
 });
 ```
 
-### Criar regras reutilizáveis
+### Create reusable rules
 
-Encapsule regras comuns em **factory functions** para evitar repetição.
+Encapsulate common rules in **factory functions** to avoid repetition.
 
 ```typescript
 interface User {
@@ -431,7 +431,7 @@ interface User {
 const isRequired = (field: keyof User, error: string) => ({
   key: field,
   error: () => error,
-  description: `Verifica se ${String(field)} foi fornecido`,
+  description: `Checks if ${String(field)} was provided`,
   runValidate: (data: User) => {
     const value = data[field];
     return typeof value === "string" ? value.trim().length > 0 : !!value;
@@ -441,7 +441,7 @@ const isRequired = (field: keyof User, error: string) => ({
 const isEmail = (error: string) => ({
   key: "email" as const,
   error: () => error,
-  description: "Valida formato do email",
+  description: "Validates email format",
   runValidate: (data: User) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
 });
@@ -449,7 +449,7 @@ const isEmail = (error: string) => ({
 const minLength = (field: keyof User, min: number, error: string) => ({
   key: field,
   error: () => error,
-  description: `Mínimo de ${min} caracteres`,
+  description: `Minimum of ${min} characters`,
   runValidate: (data: User) => {
     const value = data[field];
     return typeof value === "string" ? value.length >= min : false;
@@ -458,24 +458,24 @@ const minLength = (field: keyof User, min: number, error: string) => ({
 
 const passwordsMatch = {
   key: "confirmPassword" as const,
-  error: () => "Senhas não conferem",
-  description: "Confirmação deve ser igual à senha",
+  error: () => "Passwords do not match",
+  description: "Confirmation must match the password",
   runValidate: (data: User) => data.password === data.confirmPassword,
 };
 
 const validator = new SchemaValidator<User>({
   schema: [
-    isRequired("username", "Nome de usuário é obrigatório"),
-    isEmail("Email inválido"),
-    minLength("password", 8, "Senha deve ter pelo menos 8 caracteres"),
+    isRequired("username", "Username is required"),
+    isEmail("Invalid email"),
+    minLength("password", 8, "Password must be at least 8 characters"),
     passwordsMatch,
   ],
 });
 ```
 
-### Transformar dados antes de validar
+### Transform data before validation
 
-O campo `transform` modifica os dados antes da validação. O resultado é **encadeado** entre regras — cada regra recebe os dados já transformados pelas anteriores.
+The `transform` field modifies data before validation. The result is **chained** across rules — each rule receives the data already transformed by previous rules.
 
 ```typescript
 interface User {
@@ -487,13 +487,13 @@ const validator = new SchemaValidator<User>({
   schema: [
     {
       key: "name",
-      error: () => "Nome é obrigatório",
+      error: () => "Name is required",
       transform: (data) => ({ ...data, name: data.name.trim() }),
       runValidate: (data) => data.name.length > 0,
     },
     {
       key: "email",
-      error: () => "Email inválido",
+      error: () => "Invalid email",
       transform: (data) => ({
         ...data,
         email: data.email.toLowerCase().trim(),
@@ -505,22 +505,22 @@ const validator = new SchemaValidator<User>({
 });
 
 const result = await validator.execute({
-  name: "  João  ",
-  email: "  JOAO@EMAIL.COM  ",
+  name: "  John  ",
+  email: "  JOHN@EMAIL.COM  ",
 });
 
-console.log(result.data.name); // "João"
-console.log(result.data.email); // "joao@email.com"
+console.log(result.data.name); // "John"
+console.log(result.data.email); // "john@email.com"
 ```
 
-**Transform assíncrono:**
+**Async transform:**
 
 ```typescript
 const validator = new SchemaValidator<User>({
   schema: [
     {
       key: "email",
-      error: () => "Email já cadastrado",
+      error: () => "Email already registered",
       transform: async (data) => {
         const normalized = data.email.toLowerCase().trim();
         return { ...data, email: normalized };
@@ -537,9 +537,9 @@ const validator = new SchemaValidator<User>({
 });
 ```
 
-### Validar condicionalmente
+### Validate conditionally
 
-O campo `condition` determina se a regra deve ser executada. Se a condição retornar `false`, a regra é ignorada.
+The `condition` field determines whether a rule should execute. If the condition returns `false`, the rule is skipped.
 
 ```typescript
 interface FormData {
@@ -553,24 +553,24 @@ const formValidator = new SchemaValidator<FormData>({
   schema: [
     {
       key: "type",
-      error: () => "Tipo inválido",
+      error: () => "Invalid type",
       runValidate: (data) => ["individual", "company"].includes(data.type),
     },
     {
       key: "cpf",
-      error: () => "CPF inválido",
+      error: () => "Invalid CPF",
       condition: (data) => data.type === "individual",
       runValidate: (data) => /^\d{11}$/.test(data.cpf),
     },
     {
       key: "cnpj",
-      error: () => "CNPJ inválido",
+      error: () => "Invalid CNPJ",
       condition: (data) => data.type === "company",
       runValidate: (data) => /^\d{14}$/.test(data.cnpj),
     },
     {
       key: "companyName",
-      error: () => "Razão social obrigatória",
+      error: () => "Company name is required",
       condition: (data) => data.type === "company",
       runValidate: (data) => data.companyName.length > 0,
     },
@@ -578,7 +578,7 @@ const formValidator = new SchemaValidator<FormData>({
 });
 ```
 
-**Condition assíncrona:**
+**Async condition:**
 
 ```typescript
 interface ProductForm {
@@ -590,7 +590,7 @@ const validator = new SchemaValidator<ProductForm>({
   schema: [
     {
       key: "discount",
-      error: () => "Desconto inválido",
+      error: () => "Invalid discount",
       condition: async (data) => {
         const response = await fetch(
           `/api/categories/${data.categoryId}`
@@ -604,9 +604,9 @@ const validator = new SchemaValidator<ProductForm>({
 });
 ```
 
-### Parar no primeiro erro
+### Stop on first error
 
-Com `abortEarly: true`, a validação é interrompida assim que o primeiro erro é encontrado.
+With `abortEarly: true`, validation stops as soon as the first error is found.
 
 ```typescript
 interface LoginData {
@@ -618,23 +618,23 @@ const loginValidator = new SchemaValidator<LoginData>({
   schema: [
     {
       key: "email",
-      error: () => "Email é obrigatório",
+      error: () => "Email is required",
       runValidate: (data) => data.email.trim().length > 0,
     },
     {
       key: "email",
-      error: () => "Email inválido",
+      error: () => "Invalid email",
       runValidate: (data) =>
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
     },
     {
       key: "password",
-      error: () => "Senha é obrigatória",
+      error: () => "Password is required",
       runValidate: (data) => data.password.length > 0,
     },
     {
       key: "password",
-      error: () => "Mínimo de 8 caracteres",
+      error: () => "Minimum 8 characters",
       runValidate: (data) => data.password.length >= 8,
     },
   ],
@@ -646,12 +646,12 @@ const result = await loginValidator.execute({
   password: "123",
 });
 
-console.log(result.notification.length); // 1 — apenas o primeiro erro
+console.log(result.notification.length); // 1 — only the first error
 ```
 
-### Combinar transform + condition + abortEarly
+### Combine transform + condition + abortEarly
 
-As funcionalidades podem ser combinadas livremente. A ordem de execução dentro de cada regra segue o pipeline: **transform → condition → runValidate**.
+Features can be freely combined. The execution order within each rule follows the pipeline: **transform → condition → runValidate**.
 
 ```typescript
 interface OrderData {
@@ -664,12 +664,12 @@ const orderValidator = new SchemaValidator<OrderData>({
   schema: [
     {
       key: "total",
-      error: () => "Total deve ser positivo",
+      error: () => "Total must be positive",
       runValidate: (data) => data.total > 0,
     },
     {
       key: "couponCode",
-      error: () => "Cupom inválido",
+      error: () => "Invalid coupon",
       condition: (data) => data.couponCode.length > 0,
       transform: async (data) => {
         const response = await fetch(`/api/coupons/${data.couponCode}`);
@@ -697,11 +697,11 @@ const result = await orderValidator.execute({
 console.log(result.data.finalTotal); // 160 (200 - 20%)
 ```
 
-### Criar padrões customizados
+### Create custom patterns
 
-Quando os mappers padrão não bastam, você pode estender `NotificationPattern` e `ResultPattern` com campos específicos do seu domínio.
+When default mappers aren't enough, you can extend `NotificationPattern` and `ResultPattern` with domain-specific fields.
 
-**Notification customizado com tipo de erro:**
+**Custom notification with error type:**
 
 ```typescript
 interface CustomNotification {
@@ -730,7 +730,7 @@ const validator = new SchemaValidator<User, CustomNotification, CustomResult<Use
   schema: [
     {
       key: "email",
-      error: () => "Email inválido",
+      error: () => "Invalid email",
       runValidate: (data) =>
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
     },
@@ -753,8 +753,8 @@ const validator = new SchemaValidator<User, CustomNotification, CustomResult<Use
 });
 
 const result = await validator.execute({
-  name: "João",
-  email: "invalido",
+  name: "John",
+  email: "invalid",
 });
 
 console.log(result.isValid); // false
@@ -762,9 +762,9 @@ console.log(result.errors[0].field); // "email"
 console.log(result.errors[0].type); // "error"
 ```
 
-### Integrar com APIs REST
+### Integrate with REST APIs
 
-Use mappers customizados para gerar respostas no formato que sua API espera.
+Use custom mappers to generate responses in the format your API expects.
 
 ```typescript
 interface ApiResponse<T> {
@@ -791,12 +791,12 @@ const apiValidator = new SchemaValidator<User, ApiNotification, ApiResponse<User
   schema: [
     {
       key: "name",
-      error: () => "Nome é obrigatório",
+      error: () => "Name is required",
       runValidate: (data) => data.name.trim().length > 0,
     },
     {
       key: "email",
-      error: () => "Email inválido",
+      error: () => "Invalid email",
       runValidate: (data) =>
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
     },
@@ -813,7 +813,7 @@ const apiValidator = new SchemaValidator<User, ApiNotification, ApiResponse<User
     notification: notif as NotificationPattern[],
     data,
     status: notif.length === 0 ? 200 : 400,
-    message: notif.length === 0 ? "OK" : "Erro de validação",
+    message: notif.length === 0 ? "OK" : "Validation error",
     payload: notif.length === 0 ? data : undefined,
     errors: notif.map((n) => ({
       field: n.field,
@@ -823,13 +823,13 @@ const apiValidator = new SchemaValidator<User, ApiNotification, ApiResponse<User
 });
 
 const result = await apiValidator.execute({
-  name: "João",
-  email: "joao@email.com",
+  name: "John",
+  email: "john@email.com",
 });
 
 // result.status === 200
 // result.errors === []
-// Uso em um controller Express/Fastify:
+// Usage in an Express/Fastify controller:
 // res.status(result.status).json(result);
 ```
 
@@ -839,15 +839,15 @@ const result = await apiValidator.execute({
 
 ### `SchemaValidator<T, N, R>`
 
-Classe principal. Implementa `Command<T, R>`.
+Main class. Implements `Command<T, R>`.
 
-| Parâmetro genérico | Default | Descrição |
+| Generic parameter | Default | Description |
 |---|---|---|
-| `T extends object` | — | Tipo do objeto a ser validado |
-| `N extends NotificationPattern` | `NotificationPattern` | Tipo da notificação de erro |
-| `R extends ResultPattern<T>` | `ResultPattern<T>` | Tipo do resultado |
+| `T extends object` | — | Type of the object to validate |
+| `N extends NotificationPattern` | `NotificationPattern` | Error notification type |
+| `R extends ResultPattern<T>` | `ResultPattern<T>` | Result type |
 
-**Construtor:**
+**Constructor:**
 
 ```typescript
 new SchemaValidator<T, N, R>({
@@ -858,21 +858,21 @@ new SchemaValidator<T, N, R>({
 })
 ```
 
-| Opção | Obrigatório | Padrão | Descrição |
+| Option | Required | Default | Description |
 |---|---|---|---|
-| `schema` | Sim | — | Array de regras de validação |
-| `notificationMappers` | Não | mapper padrão | Customiza como notificações são geradas |
-| `resultMappers` | Não | mapper padrão | Customiza como o resultado é montado |
-| `abortEarly` | Não | `false` | Se `true`, para no primeiro erro |
+| `schema` | Yes | — | Array of validation rules |
+| `notificationMappers` | No | default mapper | Customizes how notifications are generated |
+| `resultMappers` | No | default mapper | Customizes how the result is assembled |
+| `abortEarly` | No | `false` | If `true`, stops on first error |
 
-**Métodos:**
+**Methods:**
 
-| Método | Retorno | Descrição |
+| Method | Return | Description |
 |---|---|---|
-| `execute(data: T)` | `Promise<R>` | Executa todas as regras e retorna o resultado |
-| `validation(data: T)` | `Promise<R>` | Alias interno — mesmo comportamento de `execute` |
+| `execute(data: T)` | `Promise<R>` | Runs all rules and returns the result |
+| `validation(data: T)` | `Promise<R>` | Internal alias — same behavior as `execute` |
 
-### Tipos exportados
+### Exported types
 
 ```typescript
 import type {
@@ -927,23 +927,23 @@ interface Command<T extends object, R extends object> {
 
 ---
 
-## Funcionalidades
+## Features
 
-- **Zero dependências** — não requer bibliotecas externas
-- **NotificationPattern** — notificações de erro padronizadas
-- **ResultPattern** — resultado padronizado com `success`, `notification[]` e `data`
-- **Mappers customizáveis** — personalize os formatos de notificação e resultado
-- **Suporte sync/async** — todos os callbacks aceitam funções síncronas e assíncronas
-- **`transform`** — modifique os dados antes da validação (encadeado entre regras)
-- **`condition`** — execute regras apenas quando uma condição for atendida
-- **`abortEarly`** — interrompa no primeiro erro
-- **Validação contínua** — execute todas as regras e colete todos os erros (padrão)
-- **Totalmente tipado** — TypeScript nativo com genéricos
-- **Command Pattern** — interface `Command<T, R>` para integração com Command Bus / Mediator
-- **Agnóstico** — funciona com qualquer formato de objeto
+- **Zero dependencies** — no external libraries required
+- **NotificationPattern** — standardized error notifications
+- **ResultPattern** — standardized result with `success`, `notification[]`, and `data`
+- **Customizable mappers** — personalize notification and result formats
+- **Sync/async support** — all callbacks accept both synchronous and asynchronous functions
+- **`transform`** — modify data before validation (chained across rules)
+- **`condition`** — execute rules only when a condition is met
+- **`abortEarly`** — stop on first error
+- **Continuous validation** — run all rules and collect all errors (default)
+- **Fully typed** — native TypeScript with generics
+- **Command Pattern** — `Command<T, R>` interface for Command Bus / Mediator integration
+- **Agnostic** — works with any object shape
 
 ---
 
-## Licença
+## License
 
 MIT © Felca
