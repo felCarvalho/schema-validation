@@ -1,4 +1,4 @@
-# schemaValidation
+# schemaValidation v2.2.1
 
 Biblioteca de validação simples, leve e agnóstica com **NotificationPattern** e **ResultPattern** para respostas padronizadas.
 

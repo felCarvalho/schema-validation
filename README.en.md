@@ -1,4 +1,4 @@
-# schemaValidation
+# schemaValidation v2.2.1
 
 A simple, lightweight, and agnostic validation library with **NotificationPattern** and **ResultPattern** for standardized responses.
 
