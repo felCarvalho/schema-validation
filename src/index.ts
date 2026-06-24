@@ -63,15 +63,16 @@ export class SchemaValidator<
         let currentData: T = data;
 
         const filteredSchema = this.schema.filter((rule) => {
-            const matchesPick = !pick?.length ||
+            const matchesPick =
+                !pick?.length ||
                 pick.includes(rule.key as string) ||
                 rule.groups?.some((g) => pick!.includes(g));
             if (!matchesPick) return false;
 
-            const matchesOmit = omit?.length && (
-                omit.includes(rule.key as string) ||
-                rule.groups?.some((g) => omit.includes(g))
-            );
+            const matchesOmit =
+                omit?.length &&
+                (omit.includes(rule.key as string) ||
+                    rule.groups?.some((g) => omit.includes(g)));
             if (matchesOmit) return false;
 
             if (groups?.length && rule.groups?.length) {
