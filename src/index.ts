@@ -3,9 +3,16 @@ import type {
     ResultPattern,
     Command,
     Rule,
+    OptionsCommand,
 } from "./types.js";
 
-export type { NotificationPattern, ResultPattern, Command, Rule };
+export type {
+    NotificationPattern,
+    ResultPattern,
+    Command,
+    Rule,
+    OptionsCommand,
+};
 
 export class SchemaValidator<
     T extends object,
@@ -50,11 +57,22 @@ export class SchemaValidator<
         this.abortEarly = abortEarly ?? false;
     }
 
-    async validation(data: T, context: C) {
+    async validation(data: T, context: C, options: OptionsCommand = {}) {
+        const { groups, pick, omit } = options;
         const notification: N[] = [];
         let currentData: T = data;
 
-        for (const rule of this.schema) {
+        const filteredSchema = this.schema.filter((rule) => {
+            if (pick?.length && !pick.includes(rule.key as string))
+                return false;
+            if (omit?.length && omit.includes(rule.key as string)) return false;
+            if (groups?.length && rule.groups?.length) {
+                return groups.some((g) => rule.groups!.includes(g));
+            }
+            return true;
+        });
+
+        for (const rule of filteredSchema) {
             if (this.abortEarly && notification.length > 0) {
                 break;
             }
@@ -89,7 +107,7 @@ export class SchemaValidator<
         return this.resultMappers(currentData, notification);
     }
 
-    async execute(input: T, context: C) {
-        return this.validation(input, context);
+    async execute(input: T, context: C, options: OptionsCommand = {}) {
+        return this.validation(input, context, options);
     }
 }

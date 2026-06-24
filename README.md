@@ -22,6 +22,7 @@ Biblioteca de validação simples, leve e agnóstica com **NotificationPattern**
   - [Criar padrões customizados](#criar-padrões-customizados)
   - [Integrar com APIs REST](#integrar-com-apis-rest)
   - [Passar contexto para as regras](#passar-contexto-para-as-regras)
+  - [Filtrar regras por groups, pick e omit](#filtrar-regras-por-groups-pick-e-omit)
 - [API Reference](#api-reference)
 - [Funcionalidades](#funcionalidades)
 - [Licença](#licença)
@@ -62,7 +63,7 @@ A biblioteca implementa três padrões de design que trabalham juntos:
 ┌─────────────────────────────────────────────────────────────┐
 │                     SchemaValidator                         │
 │                                                             │
-│  execute(data, context) ─────────────────────────────────►  │
+│  execute(data, context, options?) ───────────────────────►  │
 │                                                             │
 │  Schema (Rule[])                                            │
 │  ┌─────────┐   ┌─────────┐   ┌─────────┐                   │
@@ -88,7 +89,7 @@ A biblioteca implementa três padrões de design que trabalham juntos:
 
 ### Os três padrões
 
-**Command Pattern** — `SchemaValidator` implementa `Command<T, R, C>`. Você instancia com um schema e chama `execute(data, context)`. O validator encapsula toda a lógica de execução.
+**Command Pattern** — `SchemaValidator` implementa `Command<T, R, C>`. Você instancia com um schema e chama `execute(data, context, options?)`. O terceiro parâmetro aceita `{ groups?, pick?, omit? }` para filtrar quais regras serão executadas. O validator encapsula toda a lógica de execução.
 
 **Notification Pattern** — Cada falha de validação gera uma `Notification` com `key` (campo), `error` (mensagem) e `description` (detalhe opcional). Todas as notificações são coletadas em um array.
 
@@ -221,6 +222,7 @@ Por padrão, **todas as regras são executadas** e **todos os erros são coletad
 interface Rule<T, C> {
   key: keyof T;                                               // campo que está sendo validado
   error: (data: T, context: C) => string;                     // mensagem de erro (pode ser dinâmica)
+  groups?: string[];                                          // grupos para filtrar execução (ver seção "Filtrar regras")
   transform?: (data: T, context: C) => T | Promise<T>;        // transforma dados antes da validação
   condition?: (data: T, context: C) => boolean | Promise<boolean>; // se false, regra é ignorada
   runValidate(data: T, context: C): boolean | Promise<boolean>; // lógica da validação
@@ -872,6 +874,64 @@ Por padrão, `C = {}` — se você não passa contexto, o TypeScript não exige 
 
 ---
 
+### Filtrar regras por groups, pick e omit
+
+O terceiro parâmetro do `execute` permite filtrar quais regras serão executadas sem modificar o schema original.
+
+**groups:** execute apenas regras que pertençam a determinados grupos.
+
+```typescript
+interface User {
+  name: string;
+  email: string;
+  password: string;
+}
+
+const validator = new SchemaValidator<User>({
+  schema: [
+    {
+      key: "name",
+      error: () => "Nome é obrigatório",
+      groups: ["create", "update"],
+      runValidate: (data) => data.name.trim().length > 0,
+    },
+    {
+      key: "email",
+      error: () => "Email inválido",
+      groups: ["create", "update"],
+      runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
+    },
+    {
+      key: "password",
+      error: () => "Mínimo de 8 caracteres",
+      groups: ["create"],
+      runValidate: (data) => data.password.length >= 8,
+    },
+  ],
+});
+
+// Apenas regras do grupo "create"
+const result = await validator.execute(data, {}, { groups: ["create"] });
+```
+
+**pick:** execute apenas regras cujo `key` esteja na lista.
+
+```typescript
+// Só valida os campos "name" e "email"
+const result = await validator.execute(data, {}, { pick: ["name", "email"] });
+```
+
+**omit:** execute todas as regras exceto as cujo `key` esteja na lista.
+
+```typescript
+// Valida tudo, menos o campo "password"
+const result = await validator.execute(data, {}, { omit: ["password"] });
+```
+
+Regras que **não possuem `groups`** são executadas independentemente do filtro de grupos. Os filtros podem ser combinados: `{ groups: ["create"], pick: ["name", "email"] }`.
+
+---
+
 ## API Reference
 
 ### `SchemaValidator<T, N, R, C>`
@@ -907,8 +967,8 @@ new SchemaValidator<T, N, R, C>({
 
 | Método | Retorno | Descrição |
 |---|---|---|
-| `execute(data: T, context: C)` | `Promise<R>` | Executa todas as regras e retorna o resultado |
-| `validation(data: T, context: C)` | `Promise<R>` | Alias interno — mesmo comportamento de `execute` |
+| `execute(data: T, context: C, options?: OptionsCommand)` | `Promise<R>` | Executa as regras (com filtro opcional) e retorna o resultado |
+| `validation(data: T, context: C, options?: OptionsCommand)` | `Promise<R>` | Alias interno — mesmo comportamento de `execute` |
 
 ### Tipos exportados
 
@@ -918,6 +978,7 @@ import type {
   ResultPattern,
   Rule,
   Command,
+  OptionsCommand,
 } from "@felipe-lib/schema-local/types";
 ```
 
@@ -927,6 +988,7 @@ import type {
 interface Rule<T, C> {
   key: keyof T;
   error: (data: T, context: C) => string;
+  groups?: string[];
   transform?: (data: T, context: C) => T | Promise<T>;
   condition?: (data: T, context: C) => boolean | Promise<boolean>;
   runValidate(data: T, context: C): boolean | Promise<boolean>;
@@ -959,7 +1021,13 @@ interface ResultPattern<T> {
 
 ```typescript
 interface Command<T extends object, R extends object, C extends object> {
-  execute(data: T, context: C): Promise<R>;
+  execute(data: T, context: C, { groups, pick, omit }: OptionsCommand): Promise<R>;
+}
+
+interface OptionsCommand {
+  groups?: string[];
+  pick?: string[];
+  omit?: string[];
 }
 ```
 
@@ -978,6 +1046,7 @@ interface Command<T extends object, R extends object, C extends object> {
 - **Validação contínua** — execute todas as regras e colete todos os erros (padrão)
 - **Totalmente tipado** — TypeScript nativo com genéricos
 - **Command Pattern** — interface `Command<T, R>` para integração com Command Bus / Mediator
+- **Filtro por `groups`, `pick` e `omit`** — execute apenas regras específicas sem modificar o schema
 - **Agnóstico** — funciona com qualquer formato de objeto
 
 ---

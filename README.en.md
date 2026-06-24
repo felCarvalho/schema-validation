@@ -22,6 +22,7 @@ A simple, lightweight, and agnostic validation library with **NotificationPatter
   - [Create custom patterns](#create-custom-patterns)
   - [Integrate with REST APIs](#integrate-with-rest-apis)
   - [Pass context to rules](#pass-context-to-rules)
+  - [Filter rules by groups, pick, and omit](#filter-rules-by-groups-pick-and-omit)
 - [API Reference](#api-reference)
 - [Features](#features)
 - [License](#license)
@@ -62,7 +63,7 @@ The library implements three design patterns working together:
 ┌─────────────────────────────────────────────────────────────┐
 │                     SchemaValidator                         │
 │                                                             │
-│  execute(data, context) ─────────────────────────────────►  │
+│  execute(data, context, options?) ───────────────────────►  │
 │                                                             │
 │  Schema (Rule[])                                            │
 │  ┌─────────┐   ┌─────────┐   ┌─────────┐                   │
@@ -88,7 +89,7 @@ The library implements three design patterns working together:
 
 ### The three patterns
 
-**Command Pattern** — `SchemaValidator` implements `Command<T, R, C>`. You instantiate with a schema and call `execute(data, context)`. The validator encapsulates all execution logic.
+**Command Pattern** — `SchemaValidator` implements `Command<T, R, C>`. You instantiate with a schema and call `execute(data, context, options?)`. The third parameter accepts `{ groups?, pick?, omit? }` to filter which rules will run. The validator encapsulates all execution logic.
 
 **Notification Pattern** — Each validation failure generates a `Notification` with `key` (field), `error` (message), and `description` (optional detail). All notifications are collected into an array.
 
@@ -221,6 +222,7 @@ By default, **all rules are executed** and **all errors are collected** — you 
 interface Rule<T, C> {
   key: keyof T;                                               // field being validated
   error: (data: T, context: C) => string;                     // error message (can be dynamic)
+  groups?: string[];                                          // groups for filtering execution (see "Filter rules by groups")
   transform?: (data: T, context: C) => T | Promise<T>;        // transforms data before validation
   condition?: (data: T, context: C) => boolean | Promise<boolean>; // if false, rule is skipped
   runValidate(data: T, context: C): boolean | Promise<boolean>; // validation logic
@@ -872,6 +874,64 @@ By default, `C = {}` — if you don't pass a context, TypeScript doesn't require
 
 ---
 
+### Filter rules by groups, pick, and omit
+
+The third parameter of `execute` lets you filter which rules run without modifying the original schema.
+
+**groups:** only run rules that belong to specific groups.
+
+```typescript
+interface User {
+  name: string;
+  email: string;
+  password: string;
+}
+
+const validator = new SchemaValidator<User>({
+  schema: [
+    {
+      key: "name",
+      error: () => "Name is required",
+      groups: ["create", "update"],
+      runValidate: (data) => data.name.trim().length > 0,
+    },
+    {
+      key: "email",
+      error: () => "Invalid email",
+      groups: ["create", "update"],
+      runValidate: (data) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email),
+    },
+    {
+      key: "password",
+      error: () => "Minimum 8 characters",
+      groups: ["create"],
+      runValidate: (data) => data.password.length >= 8,
+    },
+  ],
+});
+
+// Only rules from the "create" group
+const result = await validator.execute(data, {}, { groups: ["create"] });
+```
+
+**pick:** only run rules whose `key` is in the list.
+
+```typescript
+// Only validates "name" and "email" fields
+const result = await validator.execute(data, {}, { pick: ["name", "email"] });
+```
+
+**omit:** run all rules except those whose `key` is in the list.
+
+```typescript
+// Validates everything except "password"
+const result = await validator.execute(data, {}, { omit: ["password"] });
+```
+
+Rules **without `groups`** always run regardless of the groups filter. Filters can be combined: `{ groups: ["create"], pick: ["name", "email"] }`.
+
+---
+
 ## API Reference
 
 ### `SchemaValidator<T, N, R, C>`
@@ -907,8 +967,8 @@ new SchemaValidator<T, N, R, C>({
 
 | Method | Return | Description |
 |---|---|---|
-| `execute(data: T, context: C)` | `Promise<R>` | Runs all rules and returns the result |
-| `validation(data: T, context: C)` | `Promise<R>` | Internal alias — same behavior as `execute` |
+| `execute(data: T, context: C, options?: OptionsCommand)` | `Promise<R>` | Runs the rules (with optional filter) and returns the result |
+| `validation(data: T, context: C, options?: OptionsCommand)` | `Promise<R>` | Internal alias — same behavior as `execute` |
 
 ### Exported types
 
@@ -918,6 +978,7 @@ import type {
   ResultPattern,
   Rule,
   Command,
+  OptionsCommand,
 } from "@felipe-lib/schema-local/types";
 ```
 
@@ -927,6 +988,7 @@ import type {
 interface Rule<T, C> {
   key: keyof T;
   error: (data: T, context: C) => string;
+  groups?: string[];
   transform?: (data: T, context: C) => T | Promise<T>;
   condition?: (data: T, context: C) => boolean | Promise<boolean>;
   runValidate(data: T, context: C): boolean | Promise<boolean>;
@@ -959,7 +1021,13 @@ interface ResultPattern<T> {
 
 ```typescript
 interface Command<T extends object, R extends object, C extends object> {
-  execute(data: T, context: C): Promise<R>;
+  execute(data: T, context: C, { groups, pick, omit }: OptionsCommand): Promise<R>;
+}
+
+interface OptionsCommand {
+  groups?: string[];
+  pick?: string[];
+  omit?: string[];
 }
 ```
 
@@ -978,6 +1046,7 @@ interface Command<T extends object, R extends object, C extends object> {
 - **Continuous validation** — run all rules and collect all errors (default)
 - **Fully typed** — native TypeScript with generics
 - **Command Pattern** — `Command<T, R>` interface for Command Bus / Mediator integration
+- **`groups`, `pick`, `omit` filtering** — run only specific rules without modifying the schema
 - **Agnostic** — works with any object shape
 
 ---
