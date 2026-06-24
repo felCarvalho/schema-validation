@@ -914,21 +914,27 @@ const validator = new SchemaValidator<User>({
 const result = await validator.execute(data, {}, { groups: ["create"] });
 ```
 
-**pick:** only run rules whose `key` is in the list.
+**pick:** only run rules whose `key` **or** `groups` matches the list.
 
 ```typescript
-// Only validates "name" and "email" fields
+// By field
 const result = await validator.execute(data, {}, { pick: ["name", "email"] });
+
+// By group
+const result = await validator.execute(data, {}, { pick: ["admin", "audit"] });
 ```
 
-**omit:** run all rules except those whose `key` is in the list.
+**omit:** run all rules except those whose `key` **or** `groups` matches the list.
 
 ```typescript
-// Validates everything except "password"
+// By field
 const result = await validator.execute(data, {}, { omit: ["password"] });
+
+// By group
+const result = await validator.execute(data, {}, { omit: ["admin"] });
 ```
 
-Rules **without `groups`** always run regardless of the groups filter. Filters can be combined: `{ groups: ["create"], pick: ["name", "email"] }`.
+Rules **without `groups`** always run regardless of the groups filter. Filters can be combined: `{ groups: ["create"], pick: ["name", "email"] }`. Both `pick` and `omit` check **both** `rule.key` and `rule.groups` simultaneously — if either one matches, the rule is included (pick) or excluded (omit).
 
 ---
 

@@ -914,21 +914,27 @@ const validator = new SchemaValidator<User>({
 const result = await validator.execute(data, {}, { groups: ["create"] });
 ```
 
-**pick:** execute apenas regras cujo `key` esteja na lista.
+**pick:** execute apenas regras cujo `key` **ou** `groups` corresponda à lista.
 
 ```typescript
-// Só valida os campos "name" e "email"
+// Por campo
 const result = await validator.execute(data, {}, { pick: ["name", "email"] });
+
+// Por grupo
+const result = await validator.execute(data, {}, { pick: ["admin", "audit"] });
 ```
 
-**omit:** execute todas as regras exceto as cujo `key` esteja na lista.
+**omit:** execute todas as regras exceto as cujo `key` **ou** `groups` corresponda à lista.
 
 ```typescript
-// Valida tudo, menos o campo "password"
+// Por campo
 const result = await validator.execute(data, {}, { omit: ["password"] });
+
+// Por grupo
+const result = await validator.execute(data, {}, { omit: ["admin"] });
 ```
 
-Regras que **não possuem `groups`** são executadas independentemente do filtro de grupos. Os filtros podem ser combinados: `{ groups: ["create"], pick: ["name", "email"] }`.
+Regras que **não possuem `groups`** são executadas independentemente do filtro de grupos. Os filtros podem ser combinados: `{ groups: ["create"], pick: ["name", "email"] }`. Tanto `pick` quanto `omit` verificam **simultaneamente** `rule.key` e `rule.groups` — se qualquer um dos dois corresponder, a regra é incluída (pick) ou excluída (omit).
 
 ---
 
