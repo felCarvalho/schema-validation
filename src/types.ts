@@ -17,20 +17,28 @@ export interface OptionsCommand {
     omit?: string[];
 }
 
-export interface Rule<T, C> {
-    key: keyof T;
-    error: (data: T, context: C) => string;
-    groups?: string[];
-    transform?: (data: T, context: C) => T | Promise<T>;
-    condition?: (data: T, context: C) => boolean | Promise<boolean>;
-    runValidate(data: T, context: C): boolean | Promise<boolean>;
-    description?: (data: T, context: C) => string;
+export interface RetryType {
+    active: boolean;
+    maxAttemps: number;
+    multiply?: number;
+    maxRetries: number;
 }
 
-export interface Command<T extends object, R extends object, C extends object> {
-    execute(
-        data: T,
-        context: C,
-        { groups, pick, omit }: OptionsCommand,
-    ): Promise<R>;
+export interface Rule<T, C> {
+    key: keyof T;
+    error: (data: T, context?: C) => string;
+    groups?: string[];
+    retry?: RetryType;
+    transform?: (data: T, context?: C) => T | Promise<T>;
+    condition?: (data: T, context?: C) => boolean | Promise<boolean>;
+    runValidate(data: T, context?: C): boolean | Promise<boolean>;
+    description?: (data: T, context?: C) => string;
+}
+
+export interface Command<
+    T extends object,
+    R extends object,
+    C extends object = {},
+> {
+    execute(data: T, context?: C, options?: OptionsCommand): Promise<R>;
 }

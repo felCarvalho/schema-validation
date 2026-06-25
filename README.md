@@ -1,4 +1,4 @@
-# schemaValidation v2.2.1
+# schemaValidation v2.3.0
 
 Biblioteca de validação simples, leve e agnóstica com **NotificationPattern** e **ResultPattern** para respostas padronizadas.
 
@@ -19,6 +19,7 @@ Biblioteca de validação simples, leve e agnóstica com **NotificationPattern**
     - [Validar condicionalmente](#validar-condicionalmente)
     - [Parar no primeiro erro](#parar-no-primeiro-erro)
     - [Combinar transform + condition + abortEarly](#combinar-transform--condition--abortearly)
+    - [Retry com backoff em validações](#retry-com-backoff-em-validações)
     - [Criar padrões customizados](#criar-padrões-customizados)
     - [Integrar com APIs REST](#integrar-com-apis-rest)
     - [Passar contexto para as regras](#passar-contexto-para-as-regras)
@@ -104,7 +105,9 @@ para cada rule:
   1. transform(data, context)      → modifica os dados (encadeado entre regras)
   2. condition(data, context)      → se false, pula a regra
   3. runValidate(data, context)    → executa a validação
-  4. se inválido → notificationMappers(rule, data, context) → adiciona ao array
+  4. se inválido → notificationMappers → adiciona ao array
+  ── se algum passo acima lançar erro ──
+  5. retry (opcional)              → loop com backoff (ver seção "Retry")
 ```
 
 ---
@@ -225,16 +228,39 @@ Por padrão, **todas as regras são executadas** e **todos os erros são coletad
 ```typescript
 interface Rule<T, C> {
     key: keyof T; // campo que está sendo validado
-    error: (data: T, context: C) => string; // mensagem de erro (pode ser dinâmica)
+    error: (data: T, context?: C) => string; // mensagem de erro (pode ser dinâmica)
     groups?: string[]; // grupos para filtrar execução (ver seção "Filtrar regras")
-    transform?: (data: T, context: C) => T | Promise<T>; // transforma dados antes da validação
-    condition?: (data: T, context: C) => boolean | Promise<boolean>; // se false, regra é ignorada
-    runValidate(data: T, context: C): boolean | Promise<boolean>; // lógica da validação
-    description?: (data: T, context: C) => string; // descrição opcional (pode ser dinâmica)
+    transform?: (data: T, context?: C) => T | Promise<T>; // transforma dados antes da validação
+    condition?: (data: T, context?: C) => boolean | Promise<boolean>; // se false, regra é ignorada
+    runValidate(data: T, context?: C): boolean | Promise<boolean>; // lógica da validação
+    retry?: RetryType; // config de retry com backoff (ver seção "Retry")
+    description?: (data: T, context?: C) => string; // descrição opcional (pode ser dinâmica)
 }
 ```
 
 Todos os callbacks (`transform`, `condition`, `runValidate`, `error`, `description`) suportam tanto execução **síncrona** quanto **assíncrona** (retornando `Promise`). Todos recebem `(data, context)` — permitindo passar dependências externas como conexão de banco, request object, etc.
+
+### RetryType
+
+Configura o loop de retry com backoff quando `transform`, `condition` ou `runValidate` lançarem um erro:
+
+```typescript
+interface RetryType {
+    active: boolean;      // liga/desliga o retry
+    maxAttemps: number;   // delay inicial em ms (ex: 2000)
+    multiply?: number;    // multiplicador de backoff (ex: 2 → 2s, 4s, 8s)
+    maxRetries: number;   // número máximo de tentativas
+}
+```
+
+**Comportamento:** se `active` for `true` e qualquer etapa da pipeline lançar erro, o validador:
+1. Aguarda `maxAttemps` ms
+2. Restaura os dados ao estado original
+3. Reexecuta `transform` → `condition` → `runValidate`
+4. Se `condition` retornar `false` → break (regra ignorada com sucesso)
+5. Se `runValidate` retornar `true` → break (sucesso)
+6. Senão → multiplica o timeout (`timeout *= multiply`) e tenta novamente
+7. Após `maxRetries` tentativas sem sucesso, o loop termina e uma única notificação de erro é gerada
 
 ### NotificationPattern
 
@@ -267,7 +293,7 @@ Os mappers traduzem a regra e os dados para os formatos de notificação e resul
 
 ```typescript
 // Mapper de notificação — transforma Rule + data + context em NotificationPattern
-notificationMappers: (rule, data, context) => ({
+notificationMappers: (rule, data, context?) => ({
     success: false,
     key: rule.key,
     error: rule.error(data, context),
@@ -289,8 +315,12 @@ Se você **não fornecer mappers**, a biblioteca usa os defaults — que produze
 Interface que `SchemaValidator` implementa:
 
 ```typescript
-interface Command<T extends object, R extends object, C extends object> {
-    execute(data: T, context: C): Promise<R>;
+interface Command<
+    T extends object,
+    R extends object,
+    C extends object = {},
+> {
+    execute(data: T, context?: C, options?: OptionsCommand): Promise<R>;
 }
 ```
 
@@ -704,6 +734,55 @@ const result = await orderValidator.execute({
 console.log(result.data.finalTotal); // 160 (200 - 20%)
 ```
 
+### Retry com backoff em validações
+
+Se `transform`, `condition` ou `runValidate` lançarem um erro (ex: falha de rede, timeout), você pode configurar um **loop de retry** com backoff exponencial usando o campo `retry`.
+
+```typescript
+interface PaymentData {
+    transactionId: string;
+    amount: number;
+}
+
+const validator = new SchemaValidator<PaymentData>({
+    schema: [
+        {
+            key: "transactionId",
+            error: () => "Falha na confirmação do pagamento",
+            runValidate: async (data) => {
+                const response = await fetch(
+                    `/api/transactions/${data.transactionId}`,
+                );
+                return response.ok;
+            },
+            retry: {
+                active: true,
+                maxRetries: 3,
+                maxAttemps: 1000,
+                multiply: 2,
+            },
+        },
+    ],
+});
+```
+
+**Como funciona:**
+
+1. Se `transform`, `condition` ou `runValidate` lançarem erro, o validador entra no loop de retry
+2. Cada tentativa espera `maxAttemps` ms (com backoff multiplicativo se `multiply` estiver definido)
+3. A cada retry os dados são restaurados ao estado original e toda pipeline é reexecutada
+4. Se `condition` retornar `false` → a regra é ignorada (break silencioso)
+5. Se `runValidate` retornar `true` → sucesso, sai do loop
+6. Se todas as tentativas falharem → uma única notificação de erro é gerada
+
+**Exemplo com backoff:** `maxAttemps: 1000, multiply: 2, maxRetries: 3`
+
+```
+1ª tentativa: falhou → espera 1s
+2ª tentativa: falhou → espera 2s
+3ª tentativa: falhou → espera 4s → notificação final
+```
+
 ### Criar padrões customizados
 
 Quando os mappers padrão não bastam, você pode estender `NotificationPattern` e `ResultPattern` com campos específicos do seu domínio.
@@ -979,7 +1058,7 @@ Classe principal. Implementa `Command<T, R, C>`.
 ```typescript
 new SchemaValidator<T, N, R, C>({
   schema: Rule<T, C>[];
-  notificationMappers?: (rule: Rule<T, C>, data: T, context: C) => N;
+  notificationMappers?: (rule: Rule<T, C>, data: T, context?: C) => N;
   resultMappers?: (data: T, notif: N[]) => R;
   abortEarly?: boolean;
 })
@@ -996,8 +1075,8 @@ new SchemaValidator<T, N, R, C>({
 
 | Método                                                      | Retorno      | Descrição                                                     |
 | ----------------------------------------------------------- | ------------ | ------------------------------------------------------------- |
-| `execute(data: T, context: C, options?: OptionsCommand)`    | `Promise<R>` | Executa as regras (com filtro opcional) e retorna o resultado |
-| `validation(data: T, context: C, options?: OptionsCommand)` | `Promise<R>` | Alias interno — mesmo comportamento de `execute`              |
+| `execute(data: T, context?: C, options?: OptionsCommand)`    | `Promise<R>` | Executa as regras (com filtro opcional) e retorna o resultado |
+| `validation(data: T, context?: C, options?: OptionsCommand)` | `Promise<R>` | Alias interno — mesmo comportamento de `execute`              |
 
 ### Tipos exportados
 
@@ -1008,6 +1087,7 @@ import type {
     Rule,
     Command,
     OptionsCommand,
+    RetryType,
 } from "@felipe-lib/schema-local/types";
 ```
 
@@ -1016,12 +1096,24 @@ import type {
 ```typescript
 interface Rule<T, C> {
     key: keyof T;
-    error: (data: T, context: C) => string;
+    error: (data: T, context?: C) => string;
     groups?: string[];
-    transform?: (data: T, context: C) => T | Promise<T>;
-    condition?: (data: T, context: C) => boolean | Promise<boolean>;
-    runValidate(data: T, context: C): boolean | Promise<boolean>;
-    description?: (data: T, context: C) => string;
+    transform?: (data: T, context?: C) => T | Promise<T>;
+    condition?: (data: T, context?: C) => boolean | Promise<boolean>;
+    runValidate(data: T, context?: C): boolean | Promise<boolean>;
+    retry?: RetryType;
+    description?: (data: T, context?: C) => string;
+}
+```
+
+#### `RetryType`
+
+```typescript
+interface RetryType {
+    active: boolean;
+    maxAttemps: number;
+    multiply?: number;
+    maxRetries: number;
 }
 ```
 
@@ -1049,12 +1141,12 @@ interface ResultPattern<T> {
 #### `Command<T, R, C>`
 
 ```typescript
-interface Command<T extends object, R extends object, C extends object> {
-    execute(
-        data: T,
-        context: C,
-        { groups, pick, omit }: OptionsCommand,
-    ): Promise<R>;
+interface Command<
+    T extends object,
+    R extends object,
+    C extends object = {},
+> {
+    execute(data: T, context?: C, options?: OptionsCommand): Promise<R>;
 }
 
 interface OptionsCommand {
@@ -1076,6 +1168,7 @@ interface OptionsCommand {
 - **`transform`** — modifique os dados antes da validação (encadeado entre regras)
 - **`condition`** — execute regras apenas quando uma condição for atendida
 - **`abortEarly`** — interrompa no primeiro erro
+- **`retry`** — backoff automático com repetição em caso de falha
 - **Validação contínua** — execute todas as regras e colete todos os erros (padrão)
 - **Totalmente tipado** — TypeScript nativo com genéricos
 - **Command Pattern** — interface `Command<T, R>` para integração com Command Bus / Mediator
