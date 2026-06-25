@@ -4,6 +4,7 @@ import type {
     Command,
     Rule,
     OptionsCommand,
+    RetryType,
 } from "./types.js";
 
 export type {
@@ -12,6 +13,7 @@ export type {
     Command,
     Rule,
     OptionsCommand,
+    RetryType,
 };
 
 export class SchemaValidator<
@@ -21,7 +23,7 @@ export class SchemaValidator<
     C extends object = {},
 > implements Command<T, R, C> {
     schema: Rule<T, C>[] = [];
-    notificationMappers: (rule: Rule<T, C>, data: T, context: C) => N;
+    notificationMappers: (rule: Rule<T, C>, data: T, context?: C) => N;
     resultMappers: (data: T, notif: N[]) => R;
     abortEarly: boolean = false;
 
@@ -32,14 +34,14 @@ export class SchemaValidator<
         abortEarly,
     }: {
         schema: Rule<T, C>[];
-        notificationMappers?: (rule: Rule<T, C>, data: T, context: C) => N;
+        notificationMappers?: (rule: Rule<T, C>, data: T, context?: C) => N;
         resultMappers?: (data: T, notif: N[]) => R;
         abortEarly?: boolean;
     }) {
         this.schema = schema;
         this.notificationMappers =
             notificationMappers ??
-            ((rule: Rule<T, C>, data: T, context: C) =>
+            ((rule: Rule<T, C>, data: T, context?: C) =>
                 ({
                     success: false,
                     key: rule.key,
@@ -57,7 +59,7 @@ export class SchemaValidator<
         this.abortEarly = abortEarly ?? false;
     }
 
-    async validation(data: T, context: C, options: OptionsCommand = {}) {
+    async validation(data: T, context?: C, options: OptionsCommand = {}) {
         const { groups, pick, omit } = options;
         const notification: N[] = [];
         let currentData: T = data;
@@ -107,16 +109,66 @@ export class SchemaValidator<
                     );
                 }
             } catch (error) {
-                notification.push(
-                    this.notificationMappers(rule, currentData, context),
-                );
+                const originalData: T = currentData;
+                let countRetry: number = 1;
+                let timeout: number = rule.retry?.maxAttemps ?? 2000;
+                let retrySuccess: boolean = false;
+
+                while (
+                    rule.retry?.active &&
+                    rule.retry.maxRetries >= countRetry
+                ) {
+                    await new Promise((resolve) =>
+                        setTimeout(resolve, timeout),
+                    );
+                    currentData = originalData;
+                    countRetry++;
+
+                    try {
+                        if (rule.transform) {
+                            currentData = await rule.transform(
+                                currentData,
+                                context,
+                            );
+                        }
+
+                        const condition =
+                            rule.condition &&
+                            !(await rule.condition(currentData, context));
+
+                        if (condition) {
+                            retrySuccess = true;
+                            break;
+                        }
+
+                        const isValid: boolean = await rule.runValidate(
+                            currentData,
+                            context,
+                        );
+
+                        if (isValid) {
+                            retrySuccess = true;
+                            break;
+                        }
+                    } catch {}
+
+                    if (rule.retry.multiply) {
+                        timeout = rule.retry.multiply * timeout;
+                    }
+                }
+
+                if (!retrySuccess) {
+                    notification.push(
+                        this.notificationMappers(rule, originalData, context),
+                    );
+                }
             }
         }
 
         return this.resultMappers(currentData, notification);
     }
 
-    async execute(input: T, context: C, options: OptionsCommand = {}) {
+    async execute(input: T, context?: C, options: OptionsCommand = {}) {
         return this.validation(input, context, options);
     }
 }
